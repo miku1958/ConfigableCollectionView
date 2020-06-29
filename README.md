@@ -52,7 +52,7 @@ collectionView.register(
     Router.push( ... )
   },
   .when { data in // Optional, deciding when to use this type of view if need, 
-  	data.subject == .math
+    data.subject == .math
   }
 )
 collectionView.register(
@@ -65,7 +65,7 @@ collectionView.register(
     ...
   },
   .when { data in // Optional, deciding when to use this type of view if need, 
-  	data.subject == .english
+    data.subject == .english
   }
 )
 ...
