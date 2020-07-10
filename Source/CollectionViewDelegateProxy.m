@@ -10,11 +10,11 @@
 #import <objc/runtime.h>
 
 #define NSSEL CollectionViewDelegateProxy_SEL
-@interface CollectionViewDelegateProxy_SEL: NSObject<NSCopying>
+@interface NSSEL: NSObject<NSCopying>
 @property (nonatomic, assign) SEL sel;
 @property (nonatomic, copy) NSString *name;
 @end
-@implementation CollectionViewDelegateProxy_SEL
+@implementation NSSEL
 + (instancetype)selWith:(SEL)sel {
 	return [[self alloc]initWithSEL: sel];
 }
@@ -46,15 +46,15 @@
 @end
 
 typedef BOOL (^ShouldRespond)(void);
+
+static NSArray<NSSEL *> *allDelegateMethod;
+static NSArray<NSSEL *> *allDataSourceMethod;
 @interface CollectionViewDelegateProxy()
 @property (nonatomic, strong) NSMutableDictionary<NSSEL *, NSHashTable *> *methodsMap;
 @property (nonatomic, strong) NSDictionary<NSSEL *, ShouldRespond> *respondChecker;
 
 @property (nonatomic, strong) NSHashTable<UICollectionViewDelegate> *customDelegates;
 @property (nonatomic, strong) NSHashTable<UICollectionViewDataSource> *customDatasources;
-
-@property (nonatomic, strong) NSArray<NSSEL *> *allDelegateMethod;
-@property (nonatomic, strong) NSArray<NSSEL *> *allDataSourceMethod;
 @end
 
 @implementation CollectionViewDelegateProxy
@@ -67,8 +67,18 @@ typedef BOOL (^ShouldRespond)(void);
 	[self initMethods];
 	return self;
 }
+- (instancetype)initWithProxy:(CollectionViewDelegateProxy *)proxy {
+	_customDelegates = proxy.customDelegates;
+	_customDatasources = proxy.customDatasources;
+	_methodsMap = proxy.methodsMap;
+	_mainDelegate = proxy.mainDelegate;
+	_collection = proxy.collection;
+	[self initChecker];
+	[self initMethods];
+	return self;
+}
 - (void)initChecker {
-	__weak typeof(_collection) collection = _collection;
+//	__weak typeof(_collection) collection = _collection;
 	_respondChecker = @{
 //		[NSSEL selWith: @selector(collectionView:layout:sizeForItemAtIndexPath:)] : ^BOOL () {
 //			if (![collection.collectionViewLayout isKindOfClass: UICollectionViewFlowLayout.class]) {
@@ -79,7 +89,7 @@ typedef BOOL (^ShouldRespond)(void);
 //		}
 	};
 }
-- (NSArray<CollectionViewDelegateProxy_SEL *> *)instanceMethodsFor:(Protocol *)protocol {
+- (NSArray<NSSEL *> *)instanceMethodsFor:(Protocol *)protocol {
 	NSMutableArray *methods = [NSMutableArray array];
 	unsigned int count = 0;
 	struct objc_method_description *lists = protocol_copyMethodDescriptionList(protocol, false, true, &count);
@@ -91,10 +101,12 @@ typedef BOOL (^ShouldRespond)(void);
 	return methods;
 }
 - (void)initMethods {
-	_allDataSourceMethod = [self instanceMethodsFor: NSProtocolFromString(@"UICollectionViewDataSource")];
-
-	_allDelegateMethod = [self instanceMethodsFor: NSProtocolFromString(@"UICollectionViewDelegate")];
-	
+	if (allDataSourceMethod == nil) {
+		allDataSourceMethod = [self instanceMethodsFor: NSProtocolFromString(@"UICollectionViewDataSource")];
+	}
+	if (allDelegateMethod == nil) {
+		allDelegateMethod = [self instanceMethodsFor: NSProtocolFromString(@"UICollectionViewDelegate")];
+	}
 }
 - (BOOL)setObj:(id)obj forSEL:(NSSEL *)sel filterMainDelegate:(BOOL)filter {
 	if (![obj respondsToSelector:sel.sel]) {
@@ -113,25 +125,30 @@ typedef BOOL (^ShouldRespond)(void);
 - (void)setMainDelegate:(id)mainDelegate {
 	_mainDelegate = mainDelegate;
 	
-	for (CollectionViewDelegateProxy_SEL *sel in _allDelegateMethod) {
+	for (NSSEL *sel in allDelegateMethod) {
 		[self setObj: mainDelegate forSEL: sel filterMainDelegate: false];
 	}
 	
-	for (CollectionViewDelegateProxy_SEL *sel in _allDataSourceMethod) {
+	for (NSSEL *sel in allDataSourceMethod) {
 		[self setObj: mainDelegate forSEL: sel filterMainDelegate: false];
 	}
 }
 
 - (void)addDelegates:(id<UICollectionViewDelegate>)delegate {
+	if (delegate == nil) {
+		return;
+	}
 	[_customDelegates addObject: delegate];
-	for (CollectionViewDelegateProxy_SEL *sel in _allDelegateMethod) {
+	for (NSSEL *sel in allDelegateMethod) {
 		[self setObj: delegate forSEL: sel filterMainDelegate: true];
 	}
 }
 - (void)addDatasources:(id<UICollectionViewDataSource>)dataSource {
+	if (dataSource == nil) {
+		return;
+	}
 	[_customDatasources addObject: dataSource];
-	
-	for (CollectionViewDelegateProxy_SEL *sel in _allDataSourceMethod) {
+	for (NSSEL *sel in allDataSourceMethod) {
 		[self setObj: dataSource forSEL: sel filterMainDelegate: true];
 	}
 }
@@ -181,7 +198,7 @@ typedef BOOL (^ShouldRespond)(void);
 			return;
 		}
 		if (_methodsMap[method].count == 0) {
-			if (![_allDataSourceMethod containsObject: method] && ![_allDelegateMethod containsObject: method]) {
+			if (![allDataSourceMethod containsObject: method] && ![allDelegateMethod containsObject: method]) {
 				[self findResponderForSEL: method];
 			}
 		}

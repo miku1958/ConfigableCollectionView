@@ -9,36 +9,51 @@
 import UIKit
 
 public var CollectionViewDeletegateInvade: CollectionViewInvadeProtocol.Type?
-public class CollectionView<DataType, ElementType, VerifyType>: UICollectionView {
-	public var datas = [DataType]()
-	fileprivate var registerViews = [(dataType: Any.Type, view: _RegisteredView)]()
-	fileprivate var cachingViews = [String: UIView]()
-	fileprivate var indexToIdentifier = [IndexPath: String]()
+public class CollectionView<DataType, VerifyType>: UICollectionView {
+	public var dataManager: DataManager!
+	var registerViews = [(dataType: Any.Type, registerd: _RegisteredView)]()
+	var cachingViews = [String: UIView]()
+	var indexToIdentifier = [IndexPath: String]()
 	
 	// swiftlint:disable weak_delegate
-	fileprivate lazy var collectionDelegate = CollectionViewDelegateProxy(collection: self)
-	fileprivate var mainDelegate: Delegate {
+	lazy var collectionDelegate = CollectionViewDelegateProxy(collection: self)
+	var mainDelegate: Delegate {
 		collectionDelegate.mainDelegate as! Delegate
 	}
 	
 // MARK: - override
-	public override var dataSource: UICollectionViewDataSource? {
+	public override weak var dataSource: UICollectionViewDataSource? {
 		didSet {
-			update(dataSource: dataSource)
+			super.dataSource = collectionDelegate
 		}
 	}
-	public override var delegate: UICollectionViewDelegate? {
-		didSet {
-			update(delegate: delegate)
+	public override weak var delegate: UICollectionViewDelegate? {
+		// 这里没法直接重写 set/get, 不然在 touchesEnd 里不会回调 delegate 的 didSelected 方法
+		willSet {
+			// 防止有些第三方(比如 RxCocoa) 内部在设置完 delegate 后会进行 assert 判断有没有被修改, 所以这里先把原来的异步修改回自定义的 delegate, 并且把原来的 collectionDelegate 释放, 不然会死循环
+			if newValue?.isEqual(collectionDelegate) ?? false {
+				return
+			}
+			DispatchQueue.main.async {
+				self.resetANewDelegateProxy()
+				self.collectionDelegate.addDelegates(newValue)
+			}
 		}
+	}
+	func resetANewDelegateProxy() {
+		let newDelegate = CollectionViewDelegateProxy(proxy: collectionDelegate)
+		self.collectionDelegate = newDelegate
+		super.delegate = newDelegate
 	}
 	
 	override init(frame: CGRect, collectionViewLayout layout: UICollectionViewLayout) {
 		super.init(frame: frame, collectionViewLayout: layout)
 		
+		dataManager = DataManager(collectionView: self)
+		
 		let delegate = Delegate()
 		delegate.collection = self
-	
+		
 		collectionDelegate.mainDelegate = delegate
 		
 		super.dataSource = collectionDelegate
@@ -49,7 +64,13 @@ public class CollectionView<DataType, ElementType, VerifyType>: UICollectionView
 		register(CollectionViewCell.self, forCellWithReuseIdentifier: "empty")
 	}
 	public override func reloadData() {
-		mainDelegate.prepareReload()
+//		if #available(iOS 14.0, *) {
+//
+//		} else if #available(iOS 13.0, *) {
+//
+//		} else {
+			dataManager.registerBelow13()
+//		}
 		super.reloadData()
 	}
 	
@@ -71,20 +92,14 @@ public class CollectionView<DataType, ElementType, VerifyType>: UICollectionView
 		super.setContentOffset(contentOffset, animated: animated)
 	}
 	public override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-		// iOS 10的模拟器有bug, 如果view比较短不能滑动的时候, 通过滑动触发点击事件后, 再点击是不会响应tap的(但会来到这里), 并且只有模拟器会
 		// 如果点到的View有能响应的手势是不会来到这里的
+		
+		// iOS 10的模拟器有bug, 如果view比较短不能滑动的时候, 通过滑动触发点击事件后, 再点击是不会响应tap的(但会来到这里), 并且只有模拟器会
 		
 		guard
 			let touch = touches.first,
 			let view = touch.view
 		else { return }
-		
-		// 当注册的 View 是 UICollectionView 时, super.touchesEnded(touches, with: event) 是不会回调 didSelected 的, 所以这里要提前判断调一下
-		if let indexPath = indexPathForItem(at: touch.location(in: self)), let cell = cellForItem(at: indexPath) as? CollectionViewCell, cell.isContainUICollectionView {
-			// 如果来到这里但是没有触发 didselected, cellForItem(at: indexPath) 也返回空, 就代表点击的时候触发了 relaodData
-			collectionDelegate.collectionView(self, didSelectItemAt: indexPath)
-			return
-		}
 		
 		//因为 CollectionViewCell 实现了交由 contentView 来决定 hittest, 而 super.touchesEnded(touches, with: event) 会判断当前点击的点是否在 cell 内部, 如果不是就直接结束了, 所以这里判断当 hittest 返回的 view 对应的点击在 cell 外面时就手动调用, 因为 hittest 得到一个 cell 外部的 view 跟点击到了 cell 外面原本是互斥的, 所以当条件满足时就代表 contentView 内部复写了 hittest 方法, 所以是没问题的
 		if let cell: CollectionViewCell = view.map({
@@ -103,78 +118,59 @@ public class CollectionView<DataType, ElementType, VerifyType>: UICollectionView
 		
 		super.touchesEnded(touches, with: event)
 	}
-	required init?(coder: NSCoder) { return nil }
+	required init?(coder: NSCoder) { nil }
 }
 
 // MARK: - initialize
-extension CollectionView where VerifyType == Any, DataType == Any, ElementType == Any {
-	public convenience init(layout: UICollectionViewLayout = UICollectionViewFlowLayout()) {
+extension CollectionView where VerifyType == Any, DataType == Any {
+	public convenience init(layout: UICollectionViewLayout) {
 		self.init(frame: .zero, collectionViewLayout: layout)
 	}
 }
-extension CollectionView where VerifyType == Void, DataType == [ElementType] {
-	public convenience init(layout: UICollectionViewLayout = UICollectionViewFlowLayout(), datasType: DataType.Type) {
+
+extension CollectionView where VerifyType == Void, DataType: Hashable {
+	public convenience init(layout: UICollectionViewLayout, dataType: DataType.Type) {
 		self.init(frame: .zero, collectionViewLayout: layout)
-	}
-}
-extension CollectionView where VerifyType == Void, ElementType == DataType {
-	public convenience init(layout: UICollectionViewLayout = UICollectionViewFlowLayout(), dataType: DataType.Type) {
-		self.init(frame: .zero, collectionViewLayout: layout)
-	}
-}
-extension CollectionView {
-	func update(dataSource: UICollectionViewDataSource?) {
-		collectionDelegate.addDatasources(dataSource)
-		super.dataSource = self.collectionDelegate
-	}
-	func update(delegate: UICollectionViewDelegate?) {
-		#if canImport(RxCocoa)
-		/*
-		因为RxCocoa内部在设置完delegate后会进行assert判断有没有被修改, 所以这里异步修改回自定义的delegate, 不然会死循环
-		*/
-		if let delegate = delegate as? RxCocoa.RxCollectionViewDelegateProxy {
-			DispatchQueue.main.async {
-				// 这里得先设置成nil, 否则下一步时检查有没有实现UICollectionViewDelegate的方法时会死循环
-				delegate._setForwardToDelegate(nil, retainDelegate: false)
-				self.collectionDelegate.addDelegates(delegate)
-				super.delegate = self.collectionDelegate
-			}
-			return
-		}
-		#endif
-		collectionDelegate.addDelegates(delegate)
-		super.delegate = self.collectionDelegate
 	}
 }
 
 // MARK: - register view
 public extension CollectionView where VerifyType == Any {
 	/// 使用多个RegisteredView注册Cell
-	func register<View, ElementType>(dataType: ElementType.Type, _ builds: RegisteredView<View, ElementType>...) {
-		
-		register(viewType: View.self, dataType: dataType, builds)
+	/// view: 创建View, 独立开是为了复用 View, 如果view为UICollectionViewCell, 则初始化无效(不会调用), 会使用UICollectionView.dequeue来实现
+	func register<View, DataType>(dataType: DataType.Type, view: @escaping () -> View, _ builds: RegisteredView<View, DataType>...) {
+		register(view: view, builds)
+	}
+	func register<View, DataType>(dataType: DataType.Type, view: @escaping @autoclosure () -> View, _ builds: RegisteredView<View, DataType>...) {
+		register(view: view, builds)
 	}
 }
 public extension CollectionView where VerifyType == Void {
 	/// 使用多个RegisteredView注册Cell
-	func register<View>(_ builds: RegisteredView<View, ElementType>...) {
-
-		register(viewType: View.self, dataType: ElementType.self, builds)
+	func register<View>(view: @escaping () -> View, _ builds: RegisteredView<View, DataType>...) {
+		register(view: view, builds)
+	}
+	func register<View>(view: @escaping @autoclosure () -> View, _ builds: RegisteredView<View, DataType>...) {
+		register(view: view, builds)
 	}
 }
 
 public extension CollectionView {
-	fileprivate func register<View, ElementType>(viewType: View.Type, dataType: ElementType.Type, _ builds: [RegisteredView<View, ElementType>]) {
+	func register<View, DataType>(view: @escaping () -> View, _ builds: [RegisteredView<View, DataType>]) {
 		
-		var registeredView = RegisteredView<View, ElementType>()
+		var registeredView = RegisteredView<View, DataType>(view: view)
 		for build in builds {
 			registeredView.bind(from: build)
 		}
-		let reuseIdentifier = "\(dataType)-\(viewType)"
-		registerViews.append((dataType, .init(registeredView, reuseIdentifier: reuseIdentifier)))
-		register(CollectionViewCell.self, forCellWithReuseIdentifier: reuseIdentifier)
+		let reuseIdentifier = "\(DataType.self)-\(View.self)"
+		registerViews.append((DataType.self, .init(registeredView, reuseIdentifier: reuseIdentifier)))
+		if View.self is UICollectionViewCell.Type {
+			register(View.self, forCellWithReuseIdentifier: reuseIdentifier)
+		} else {
+			register(CollectionViewCell.self, forCellWithReuseIdentifier: reuseIdentifier)
+		}
 	}
-	fileprivate struct _RegisteredView {
+	struct _RegisteredView {
 		let view: () -> UIView
 		let config: (UIView, Any) -> Void
 		let when: (Any) -> Bool
@@ -185,17 +181,17 @@ public extension CollectionView {
 		
 		let reuseIdentifier: String
 		
-		init<View, ElementType>(_ _view: RegisteredView<View, ElementType>, reuseIdentifier: String) {
+		init<View, DataType>(_ _view: RegisteredView<View, DataType>, reuseIdentifier: String) {
 			self.reuseIdentifier = reuseIdentifier
 			self.view = _view._view ?? UIView.init
 			
 			self.when = { data in
-				guard let when = _view._when, let data = data as? ElementType else { return false }
+				guard let when = _view._when, let data = data as? DataType else { return false }
 				return when(data)
 			}
 			
 			self.config = { view, data in
-				if let view = view as? View, let data = data as? ElementType {
+				if let view = view as? View, let data = data as? DataType {
 					_view._config?(view, data)
 				}
 			}
@@ -207,7 +203,7 @@ public extension CollectionView {
 			}
 			
 			self.tap = { view, data in
-				if let tap = _view._tap, let view = view as? View, let data = data as? ElementType {
+				if let tap = _view._tap, let view = view as? View, let data = data as? DataType {
 					tap(view, data)
 					return true
 				}
@@ -220,18 +216,18 @@ public extension CollectionView {
 		}
 	}
 	
-	struct RegisteredView<View, ElementType> where View: UIView {
-		public typealias R = RegisteredView<View, ElementType>
-		fileprivate var _view: (() -> View)?
-		fileprivate var _config: ((View, ElementType) -> Void)?
-		fileprivate var _when: ((ElementType) -> Bool)?
+	struct RegisteredView<View, DataType> where View: UIView {
+		public typealias R = RegisteredView<View, DataType>
+		var _view: (() -> View)?
+		var _config: ((View, DataType) -> Void)?
+		var _when: ((DataType) -> Bool)?
 		
-		fileprivate var _created: ((View) -> Void)?
-		fileprivate var _tap: ((View, ElementType) -> Void)?
+		var _created: ((View) -> Void)?
+		var _tap: ((View, DataType) -> Void)?
 		
-		fileprivate var _size: ((UICollectionView) -> CGSize)?
+		var _size: ((UICollectionView) -> CGSize)?
 		
-		fileprivate init(view: (() -> View)? = nil, config: ((View, ElementType) -> Void)? = nil, when: ((ElementType) -> Bool)? = nil, created: ((View) -> Void)? = nil, tap: ((View, ElementType) -> Void)? = nil, size: ((UICollectionView) -> CGSize)? = nil) {
+		init(view: (() -> View)? = nil, config: ((View, DataType) -> Void)? = nil, when: ((DataType) -> Bool)? = nil, created: ((View) -> Void)? = nil, tap: ((View, DataType) -> Void)? = nil, size: ((UICollectionView) -> CGSize)? = nil) {
 			_view = view
 			_config = config
 			_when = when
@@ -240,16 +236,14 @@ public extension CollectionView {
 			_size = size
 		}
 		
-		/// 创建View, 独立开是为了复用 View
-		static public func view(_ act: @escaping () -> View) -> R { R(view: act) }
 		/// 决定什么时候需要分配这个 View
-		static public func when(_ act: @escaping (ElementType) -> Bool) -> R { R(when: act) }
+		static public func when(_ act: @escaping (DataType) -> Bool) -> R { R(when: act) }
 		/// 配置View, 每次使用之前都会调用这个
-		static public func config(_ act: @escaping (View, ElementType) -> Void) -> R { R(config: act) }
+		static public func config(_ act: @escaping (View, DataType) -> Void) -> R { R(config: act) }
 		/// 当首次创建了这个 View 就会调用
 		static public func created(_ act: @escaping (View) -> Void) -> R { R(created: act) }
 		/// 当点击了这个 View 就会调用
-		static public func tap(_ act: @escaping (View, ElementType) -> Void) -> R { R(tap: act) }
+		static public func tap(_ act: @escaping (View, DataType) -> Void) -> R { R(tap: act) }
 		/// 给这个 View 一个默认尺寸
 		static public func size(_ act: @escaping (UICollectionView) -> CGSize) -> R { R(size: act) }
 		
@@ -265,103 +259,57 @@ public extension CollectionView {
 }
 
 extension CollectionView {
-	fileprivate class Delegate: NSObject, UICollectionViewDelegateFlowLayout, UICollectionViewDataSource {
+	class Delegate: NSObject, UICollectionViewDelegateFlowLayout, UICollectionViewDataSource {
 		
 		weak var collection: CollectionView?
-		typealias DelegateData = (Any, _RegisteredView)
-		var datas: [[DelegateData]] = []
-		
-		var lastIndexPath: IndexPath {
-			IndexPath(item: max(datas.last?.count ?? 0, 1)-1, section: max(datas.count, 1)-1)
-		}
-		
-		func element(for indexPath: IndexPath) -> DelegateData {
-			datas[indexPath.section][indexPath.item]
-		}
-		
-		func prepareReload() {
-			guard let collection = collection else { return }
-			var registerViews = collection.registerViews
-			
-			func makeDatas(datas: [Any]) {
-				var currentDatas = [DelegateData]()
-				for data in datas {
-					if let view = registerViews.first(where: {
-						$0.dataType == type(of: data)
-					}) {
-						currentDatas.append((data, view.view))
-					} else if let data = data as? [Any] {
-						if !currentDatas.isEmpty {
-							self.datas.append(currentDatas)
-							currentDatas = []
-						}
-						makeDatas(datas: data)
-					}
-				}
-				if !currentDatas.isEmpty {
-					self.datas.append(currentDatas)
-					
-				}
-			}
-			self.datas = []
-			makeDatas(datas: collection.datas)
-			
-			collection.indexToIdentifier = [:]
-			for section in 0..<datas.count {
-				for item in 0..<datas[section].count {
-					if let registerd = collection.registerViews.first(where: {
-						$0.view.when(datas[section][item].0)
-					}) {
-						collection.indexToIdentifier[IndexPath(item: item, section: section)] = registerd.view.reuseIdentifier
-					} else if let registerd = collection.registerViews.first(where: {
-						$0.dataType == type(of: datas[section][item].0)
-					}) {
-						collection.indexToIdentifier[IndexPath(item: item, section: section)] = registerd.view.reuseIdentifier
-					} else {
-						#if DEBUG
-						fatalError("hit unuse data")
-						#endif
-					}
-				}
-			}
-		}
 		
 		// MARK: - UICollectionViewDataSource
 		func numberOfSections(in collectionView: UICollectionView) -> Int {
-			datas.count
+			collection?.dataManager._datas.count ?? 0
 		}
 		func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-			datas[section].count
+			collection?.dataManager._datas[section].items.count ?? 0
 		}
 		
 		func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
 			guard
 				let collection = collection,
 				let identifier = collection.indexToIdentifier[indexPath],
-				let registerd = collection.registerViews.first(where: { $0.view.reuseIdentifier == identifier })?.view,
-				let cell = collection.dequeueReusableCell(withReuseIdentifier: registerd.reuseIdentifier, for: indexPath) as? CollectionViewCell
+				let registerd = collection.registerViews.first(where: { $0.registerd.reuseIdentifier == identifier })?.registerd
 				else {
 					return collectionView.dequeueReusableCell(withReuseIdentifier: "empty", for: indexPath)
 			}
-			if cell.createSubview == nil {
-				cell.createSubview = registerd.view
-				if let view = cell.subview {
-					registerd.created(view)
+			let cell = collection.dequeueReusableCell(withReuseIdentifier: registerd.reuseIdentifier, for: indexPath)
+			
+			if let cell = cell as? CollectionViewCell {
+				if cell.createSubview == nil {
+					cell.createSubview = registerd.view
+					if let view = cell.subview {
+						registerd.created(view)
+					}
 				}
-			}
-			if let view = cell.subview {
-				let element = self.element(for: indexPath).0
+				if let view = cell.subview {
+					let element = collection.dataManager.element(for: indexPath)
+					// 这个不能放到willDisplay里去调, 不然如果是自适应尺寸的cell会出错
+					registerd.config(view, element)
+				}
+			} else { // 注册的 View 是 UICollectionViewCell
+				if cell.isFirstDequeued {
+					registerd.created(cell)
+					cell.isFirstDequeued = false
+				}
+				let element = collection.dataManager.element(for: indexPath)
 				// 这个不能放到willDisplay里去调, 不然如果是自适应尺寸的cell会出错
-				registerd.config(view, element)
+				registerd.config(cell, element)
 			}
 			return cell
 		}
-		
+	
 		// MARK: - UICollectionViewDelegateFlowLayout
 		func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
 			guard let collection = collection else { return .zero }
 			if let identifier = collection.indexToIdentifier[indexPath],
-				let registerd = collection.registerViews.first(where: { $0.view.reuseIdentifier == identifier })?.view,
+				let registerd = collection.registerViews.first(where: { $0.registerd.reuseIdentifier == identifier })?.registerd,
 				let size = registerd.size(collectionView) {
 				return size
 			} else if let delegates = (collection.collectionDelegate.customDelegates.allObjects as? [UICollectionViewDelegateFlowLayout]) {
@@ -381,11 +329,13 @@ extension CollectionView {
 			}
 			return CGSize(width: 1, height: 1)
 		}
+		
+		// MARK: - UICollectionViewDelegate
 		func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
 			guard
 				let collection = collection,
 				let identifier = collection.indexToIdentifier[indexPath],
-				let registerd = collection.registerViews.first(where: { $0.view.reuseIdentifier == identifier })?.view,
+				let registerd = collection.registerViews.first(where: { $0.registerd.reuseIdentifier == identifier })?.registerd,
 				let cell = collection.cellForItem(at: indexPath) as? CollectionViewCell,
 				let view = cell.subview
 				else {
@@ -393,7 +343,7 @@ extension CollectionView {
 			}
 			
 			let call = {
-				let element = self.element(for: indexPath).0
+				let element = collection.dataManager.element(for: indexPath)
 				guard
 					!registerd.tap(view, element), // 处理自定义的tap, 如果成功则取消后续操作
 					let delegates = collection.collectionDelegate.customDelegates.allObjects as? [UICollectionViewDelegate]
@@ -413,6 +363,18 @@ extension CollectionView {
 
 extension CollectionView {
 	public func scrollToEnd(animated: Bool = true) {
-		scrollToItem(at: mainDelegate.lastIndexPath, at: .right, animated: animated)
+		scrollToItem(at: dataManager.lastIndexPath, at: .right, animated: animated)
+	}
+}
+
+extension UICollectionViewCell {
+	private static var CellFirstDequeuedTag: Void?
+	var isFirstDequeued: Bool {
+		set {
+			objc_setAssociatedObject(self, &Self.CellFirstDequeuedTag, newValue, .OBJC_ASSOCIATION_RETAIN)
+		}
+		get {
+			objc_getAssociatedObject(self, &Self.CellFirstDequeuedTag) as? Bool ?? true
+		}
 	}
 }

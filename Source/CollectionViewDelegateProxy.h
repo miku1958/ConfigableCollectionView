@@ -13,6 +13,7 @@ NS_ASSUME_NONNULL_BEGIN
 @interface CollectionViewDelegateProxy: NSProxy<UICollectionViewDelegate, UICollectionViewDataSource>
 
 - (instancetype)initWithCollection:(UICollectionView *)collection;
+- (instancetype)initWithProxy:(CollectionViewDelegateProxy *)proxy;
 
 @property (nullable, nonatomic, weak) UICollectionView *collection;
 

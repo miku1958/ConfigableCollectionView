@@ -9,13 +9,11 @@
 import UIKit
 
 class CollectionViewCell: UICollectionViewCell {
-	var isContainUICollectionView = false
 	var subview: UIView?
 	var createSubview: (() -> UIView)? {
 		didSet {
 			subview?.removeFromSuperview()
 			if let view = createSubview?() {
-				isContainUICollectionView = view is UICollectionViewCell
 				subview = view
 				contentView.addSubview(view)
 
@@ -34,7 +32,7 @@ class CollectionViewCell: UICollectionViewCell {
 	}
 	override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
 		if isUserInteractionEnabled, !isHidden, alpha>0.01 {
-			return subview?.hitTest(point, with: event) ??  super.hitTest(point, with: event)
+			return subview?.hitTest(point, with: event) ?? super.hitTest(point, with: event)
 		} else {
 			return nil
 		}
