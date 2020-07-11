@@ -91,12 +91,23 @@ static NSArray<NSSEL *> *allDataSourceMethod;
 }
 - (NSArray<NSSEL *> *)instanceMethodsFor:(Protocol *)protocol {
 	NSMutableArray *methods = [NSMutableArray array];
-	unsigned int count = 0;
-	struct objc_method_description *lists = protocol_copyMethodDescriptionList(protocol, false, true, &count);
-	int index = 0;
-	while (index<count) {
-		[methods addObject: [[NSSEL alloc]initWithSEL: lists[index].name]];
-		index += 1;
+	{
+		unsigned int count = 0;
+		struct objc_method_description *lists = protocol_copyMethodDescriptionList(protocol, false, true, &count);
+		int index = 0;
+		while (index<count) {
+			[methods addObject: [[NSSEL alloc]initWithSEL: lists[index].name]];
+			index += 1;
+		}
+	}
+	{
+		unsigned int count = 0;
+		struct objc_method_description *lists = protocol_copyMethodDescriptionList(protocol, true, true, &count);
+		int index = 0;
+		while (index<count) {
+			[methods addObject: [[NSSEL alloc]initWithSEL: lists[index].name]];
+			index += 1;
+		}
 	}
 	return methods;
 }
