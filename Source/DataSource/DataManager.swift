@@ -48,11 +48,7 @@ extension CollectionView {
 		@inline(__always)
 		var diffDataSource: DiffDataSource? {
 			get {
-				if let diff =  _diffDataSource as? DiffDataSource {
-					collectionView?.forceReload()
-					return diff
-				}
-				return nil
+				_diffDataSource as? DiffDataSource
 			} set {
 				_diffDataSource = newValue
 			}
@@ -130,15 +126,17 @@ extension CollectionView.DataManager {
 	@inlinable
 	@inline(__always)
 	func element(for indexPath: IndexPath) -> Any {
-		if #available(iOS 13.0, *), let diffDataSource = diffDataSource, let item = diffDataSource.itemIdentifier(for: indexPath) {
-			return item
+		var item: Any?
+		if #available(iOS 13.0, *), let diffDataSource = diffDataSource {
+			item = diffDataSource.itemIdentifier(for: indexPath)
 		}
-		let item = sections[indexPath.section].items[indexPath.item]
-		
-		if let item = item.base as? CollectionView.AnyHashable {
+		if item == nil {
+			item = sections[indexPath.section].items[indexPath.item].base
+		}
+		if let item = item as? CollectionView.AnyHashable {
 			return item.base
 		} else {
-			return item
+			return item as Any
 		}
 	}
 	@usableFromInline
@@ -501,6 +499,7 @@ extension CollectionView.DataManager where VerifyType == Void {
 	@inlinable
 	public func indexPath(for itemIdentifier: DataType) -> IndexPath? {
 		if #available(iOS 13.0, *), let diff = diffDataSource {
+			collectionView?.forceReload()
 			return diff.indexPath(for: itemIdentifier)
 		} else {
 			for pair in sections.enumerated() {
@@ -846,6 +845,7 @@ extension CollectionView.DataManager where VerifyType == Void {
 	public func expand(parents: [DataType]) -> _CollectionViewReloadHandler {
 		prepareReload()
 		guard let diff = diffDataSource else { return reloadHandler }
+		collectionView?.forceReload()
 		let reload = _CollectionViewReloadHandler()
 		collectionView?.reloadHandlers.append(reload)
 		reload._reload = { [weak collectionView] animatingDifferences, completion in
@@ -871,6 +871,7 @@ extension CollectionView.DataManager where VerifyType == Void {
 	public func collapse(parents: [DataType]) -> _CollectionViewReloadHandler {
 		prepareReload()
 		guard let diff = diffDataSource else { return reloadHandler }
+		collectionView?.forceReload()
 		let reload = _CollectionViewReloadHandler()
 		collectionView?.reloadHandlers.append(reload)
 		reload._reload = { [weak collectionView] animatingDifferences, completion in
@@ -894,6 +895,7 @@ extension CollectionView.DataManager where VerifyType == Void {
 	@inlinable
 	public func isExpanded(_ item: DataType) -> Bool {
 		guard let diff = diffDataSource else { return false }
+		collectionView?.forceReload()
 		return sections.contains {
 			diff.snapshot(for: $0.section).isExpanded(item)
 		}
@@ -903,6 +905,7 @@ extension CollectionView.DataManager where VerifyType == Void {
 	@inlinable
 	public func level(of item: DataType) -> Int {
 		guard let diff = diffDataSource else { return 0 }
+		collectionView?.forceReload()
 		return sections.map {
 			diff.snapshot(for: $0.section).level(of: item)
 		}.max() ?? 0
@@ -912,7 +915,7 @@ extension CollectionView.DataManager where VerifyType == Void {
 	public func parent(of child: DataType) -> DataType? {
 		prepareReload()
 		guard let diff = diffDataSource else { return nil }
-		
+		collectionView?.forceReload()
 		for section in sections {
 			let snapshot = diff.snapshot(for: section.section)
 			if let parent = snapshot.parent(of: child) {
@@ -932,6 +935,7 @@ extension CollectionView.DataManager where VerifyType == Void {
 				}
 			}
 		}
+		collectionView?.forceReload()
 		return sections.flatMap {
 			diff.snapshot(for: $0.section).visibleItems
 		}
@@ -946,6 +950,7 @@ extension CollectionView.DataManager where VerifyType == Void {
 				$0.base
 			}
 		}
+		collectionView?.forceReload()
 		return sections.first {
 			$0.section == identifier
 		}.map {
@@ -964,6 +969,7 @@ extension CollectionView.DataManager where VerifyType == Void {
 				$0.base
 			}
 		}
+		collectionView?.forceReload()
 		return diff.snapshot(for: sections[index].section).visibleItems
 	}
 	
@@ -987,6 +993,7 @@ extension CollectionView.DataManager where VerifyType == Void {
 			assertionFailure("Invalid parameter not satisfying: index != NSNotFound")
 			return false
 		}
+		collectionView?.forceReload()
 		return sections.contains {
 			diff.snapshot(for: $0.section).isVisible(item)
 		}
