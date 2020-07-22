@@ -129,7 +129,9 @@ static NSArray<NSSEL *> *allDataSourceMethod;
 	if (filter && [_methodsMap[sel] containsObject: _mainDelegate]) {
 		return true;
 	}
-	[_methodsMap[sel] addObject: obj];
+	if(_mainDelegate == obj || ![_methodsMap[sel] containsObject: _mainDelegate]) {
+		[_methodsMap[sel] addObject: obj];
+	}
 	return true;
 }
 
