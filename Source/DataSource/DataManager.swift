@@ -462,10 +462,10 @@ extension CollectionView.DataManager where VerifyType == Void {
 					sections[sectionIndex].items.remove(at: itemIndex)
 					return
 				} else {
-					itemIndex += 1
+					itemIndex -= 1
 				}
 			}
-			sectionIndex += 1
+			sectionIndex -= 1
 		}
 	}
 	@inlinable
@@ -484,9 +484,9 @@ extension CollectionView.DataManager where VerifyType == Void {
 	@inlinable
 	@discardableResult
 	public func apply(_ sections: [[DataType]]) -> _CollectionViewReloadHandler {
-		self.sections = sections.enumerated().map({
+		self.sections = sections.enumerated().map {
 			.init(sectionIdentifier: $0.offset, items: $0.element)
-		})
+		}
 		return reloadHandler.commit()
 	}
 	
@@ -534,10 +534,10 @@ extension CollectionView.DataManager where VerifyType == Void {
 			return reloadHandler
 		}
 		
-		let itemUnique = items.unique
-		filterAddingItem(set: itemUnique().set)
+		let itemUnique = items.unique()
+		filterAddingItem(set: itemUnique.set)
 		
-		sections[sectionIndex].items.append(contentsOf: itemUnique().array.map {
+		sections[sectionIndex].items.append(contentsOf: itemUnique.array.map {
 			.init($0)
 		})
 		return reloadHandler.commit()
@@ -552,10 +552,10 @@ extension CollectionView.DataManager where VerifyType == Void {
 			return reloadHandler
 		}
 
-		let itemUnique = items.unique
-		filterAddingItem(set: itemUnique().set)
+		let itemUnique = items.unique()
+		filterAddingItem(set: itemUnique.set)
 
-		sections[sections.count-1].items.append(contentsOf: itemUnique().array.map {
+		sections[sections.count-1].items.append(contentsOf: itemUnique.array.map {
 			.init($0)
 		})
 		return reloadHandler.commit()
@@ -741,10 +741,10 @@ extension CollectionView.DataManager where VerifyType == Void {
 			
 			var indexPaths = [IndexPath]()
 			var ids = [DataType]()
-			for (section, element) in sections.enumerated() {
-				for (item, element) in element.items.enumerated() {
+			for (sectionIndex, element) in sections.enumerated() {
+				for (itemIndex, element) in element.items.enumerated() {
 					if identifiersSet.insert(element.base).inserted {
-						indexPaths.append(IndexPath(item: item, section: section))
+						indexPaths.append(IndexPath(item: itemIndex, section: sectionIndex))
 						ids.append(element.base)
 					}
 				}
@@ -1031,17 +1031,38 @@ extension CollectionView.DataManager where VerifyType == Void {
 }
 // MARK: - DataManager DataType == AnyHashable
 extension CollectionView.DataManager where DataType == CollectionView.AnyHashable {
+	@usableFromInline
+	func filterAddingItem<ItemIdentifierType>(set: Set<ItemIdentifierType>)  where ItemIdentifierType: Hashable {
+		var set = set
+		var sectionIndex = sections.count-1
+		var itemIndex = 0
+		while sectionIndex >= 0 {
+			itemIndex = sections[sectionIndex].items.count-1
+			while itemIndex >= 0  {
+				if let item = sections[sectionIndex].items[itemIndex].base.base as? ItemIdentifierType, !set.insert(item).inserted {
+					sections[sectionIndex].items.remove(at: itemIndex)
+					return
+				} else {
+					itemIndex -= 1
+				}
+			}
+			sectionIndex -= 1
+		}
+	}
 	@inlinable
 	@discardableResult
 	public func apply<ItemIdentifierType>(_ datas: [ItemIdentifierType]) -> _CollectionViewReloadHandler where ItemIdentifierType: Hashable {
-		sections = [.init(sectionIdentifier: 0, items: datas.map({ .init($0) }))]
-		
+		sections = [.init(sectionIdentifier: 0, items: datas.map {
+			.init($0)
+		})]
 		return reloadHandler.commit()
 	}
 	@inlinable
 	@discardableResult
 	public func apply<ItemIdentifierType, SectionIdentifierType>(_ datas: [ItemIdentifierType], toSection sectionIdentifier: SectionIdentifierType) -> _CollectionViewReloadHandler where ItemIdentifierType: Hashable, SectionIdentifierType: Hashable {
-		sections = [.init(sectionIdentifier: sectionIdentifier, items: datas.map({ .init($0) }))]
+		sections = [.init(sectionIdentifier: sectionIdentifier, items: datas.map{
+			.init($0)
+		})]
 		
 		return reloadHandler.commit()
 	}
@@ -1049,9 +1070,11 @@ extension CollectionView.DataManager where DataType == CollectionView.AnyHashabl
 	@inlinable
 	@discardableResult
 	public func apply<ItemIdentifierType>(_ sections: [[ItemIdentifierType]]) -> _CollectionViewReloadHandler where ItemIdentifierType: Hashable {
-		self.sections = sections.enumerated().map({
-			.init(sectionIdentifier: $0.offset, items: $0.element.map({ .init($0) }))
-		})
+		self.sections = sections.enumerated().map {
+			.init(sectionIdentifier: $0.offset, items: $0.element.map{
+				.init($0)
+			})
+		}
 		
 		return reloadHandler.commit()
 	}
@@ -1062,79 +1085,111 @@ extension CollectionView.DataManager where DataType == CollectionView.AnyHashabl
 	
 	@inlinable
 	public func indexPath<ItemIdentifierType>(for itemIdentifier: ItemIdentifierType) -> IndexPath? where ItemIdentifierType : Hashable {
-		for pair in sections.enumerated() {
-			if let itemIndex = pair.element.items.firstIndex(where: {
-				$0.base == itemIdentifier
-			}) {
-				return IndexPath(item: itemIndex, section: pair.offset)
+		if #available(iOS 13.0, *), let diff = diffDataSource {
+			collectionView?.forceReload()
+			return diff.indexPath(for: .init(itemIdentifier))
+		} else {
+			for pair in sections.enumerated() {
+				if let itemIndex = pair.element.items.firstIndex(where: {
+					$0.base == itemIdentifier
+				}) {
+					return IndexPath(item: itemIndex, section: pair.offset)
+				}
 			}
 		}
 		
 		return nil
 	}
 	
-	// TODO:    如果 NSDiffableDataSourceSnapshot 为空会怎么样
 	@inlinable
 	@discardableResult
 	public func append<ItemIdentifierType, SectionIdentifierType>(_ items: [ItemIdentifierType], toSection sectionIdentifier: SectionIdentifierType) -> _CollectionViewReloadHandler where ItemIdentifierType: Hashable, SectionIdentifierType: Hashable {
-		sections.append(.init(sectionIdentifier: sectionIdentifier, items: items.map({ .init($0) })))
+		guard !sections.isEmpty else {
+			assertionFailure("There are currently no sections in the data source. Please add a section first.")
+			return reloadHandler
+		}
 		
+		guard let sectionIndex = sections.firstIndex(where: {
+			$0.section == sectionIdentifier
+		}) else {
+			assertionFailure("Invalid parameter not satisfying: section != NSNotFound")
+			return reloadHandler
+		}
+		
+		let itemUnique = items.unique()
+		filterAddingItem(set: itemUnique.set)
+		
+		sections[sectionIndex].items.append(contentsOf: itemUnique.array.map {
+			.init(.init($0))
+		})
 		return reloadHandler.commit()
 	}
 	@inlinable
 	@discardableResult
 	public func append<ItemIdentifierType>(_ items: [ItemIdentifierType]) -> _CollectionViewReloadHandler where ItemIdentifierType: Hashable {
-		if sections.isEmpty {
-			sections.append(.init(sectionIdentifier: sections.count))
+		guard !sections.isEmpty else {
+			assertionFailure("There are currently no sections in the data source. Please add a section first.")
+			return reloadHandler
 		}
-		sections[sections.count-1].items.append(contentsOf: items.map({
-			.init(.init($0))
-		}))
 		
+		let itemUnique = items.unique()
+		filterAddingItem(set: itemUnique.set)
+		
+		sections[sections.count-1].items.append(contentsOf: itemUnique.array.map {
+			.init(.init($0))
+		})
 		return reloadHandler.commit()
 	}
-	// TODO:    得测试一下NSDiffableDataSourceSnapshot找不到的话会怎么样
+	
+	@inlinable
+	@inline(__always)
+	func insertItems<ItemIdentifierType>(identifier: ItemIdentifierType) -> (section: Int, item: Int)? where ItemIdentifierType: Hashable {
+		var sectionIndex = 0
+		var itemIndex = 0
+		while sectionIndex < sections.count {
+			itemIndex = 0
+			while itemIndex < sections[sectionIndex].items.count {
+				if let item = sections[sectionIndex].items[itemIndex].base.base as? ItemIdentifierType, item == identifier {
+					return (sectionIndex, itemIndex)
+				}
+				itemIndex += 1
+			}
+			sectionIndex += 1
+		}
+		
+		assertionFailure("Invalid parameter not satisfying: section != NSNotFound")
+		return nil
+	}
 	@inlinable
 	@discardableResult
 	public func insertItems<InsertType, BeforeType>(_ identifiers: [InsertType], beforeItem beforeIdentifier: BeforeType) -> _CollectionViewReloadHandler where InsertType: Hashable, BeforeType: Hashable {
-		{
-			var sectionIndex = 0
-			var itemIndex = 0
-			while sectionIndex < sections.count {
-				itemIndex = 0
-				while itemIndex < sections[sectionIndex].items.count {
-					if sections[sectionIndex].items[itemIndex].base == beforeIdentifier {
-						sections[sectionIndex].items.insert(contentsOf: identifiers.map({
-							.init(.init($0))
-						}), at: itemIndex)
-						return
-					}
-					itemIndex += 1
-				}
-				sectionIndex += 1
-			}
-		}()
+		guard let result = insertItems(identifier: beforeIdentifier) else {
+			return reloadHandler
+		}
+		
+		let itemsUnique = identifiers.unique()
+		filterAddingItem(set: itemsUnique.set)
+		
+		sections[result.section].items.insert(contentsOf: itemsUnique.array.map {
+			.init(.init($0))
+		}, at: result.item)
+		
 		return reloadHandler.commit()
 	}
 	// TODO:    得测试一下NSDiffableDataSourceSnapshot找不到的话会怎么样
 	@inlinable
 	@discardableResult
 	public func insertItems<InsertType, AfterType>(_ identifiers: [InsertType], afterItem afterIdentifier: AfterType) -> _CollectionViewReloadHandler where InsertType: Hashable, AfterType: Hashable {
-		{
-			var sectionIndex = 0
-			var itemIndex = 0
-			while sectionIndex < sections.count {
-				itemIndex = 0
-				while itemIndex < sections[sectionIndex].items.count {
-					if sections[sectionIndex].items[itemIndex].base == afterIdentifier {
-						sections[sectionIndex].items.insert(contentsOf: identifiers.map({ .init(.init($0)) }), at: itemIndex+1)
-						return
-					}
-					itemIndex += 1
-				}
-				sectionIndex += 1
-			}
-		}()
+		guard let result = insertItems(identifier: afterIdentifier) else {
+			return reloadHandler
+		}
+		
+		let itemsUnique = identifiers.unique()
+		filterAddingItem(set: itemsUnique.set)
+		
+		sections[result.section].items.insert(contentsOf: itemsUnique.array.map {
+			.init(.init($0))
+		}, at: result.item + 1)
 		
 		return reloadHandler.commit()
 	}
@@ -1205,17 +1260,53 @@ extension CollectionView.DataManager where DataType == CollectionView.AnyHashabl
 		
 		return reloadHandler.commit()
 	}
-	// TODO:    得研究一下同一个 NSDiffableDataSourceSnapshot, 不同 section 存在相同的 item 时会怎么样
+	
+	@inlinable
+	@inline(__always)
+	func moveItem<MovedType, BeforeType>(_ identifier: MovedType, toIdentifier: BeforeType) -> (from: (section: Int, item: Int), to: (section: Int, item: Int))? where MovedType: Hashable, BeforeType: Hashable {
+		var sectionIndex = 0
+		var itemIndex = 0
+		var from: (section: Int, item: Int)?
+		var to: (section: Int, item: Int)?
+		
+		while sectionIndex < sections.count {
+			itemIndex = 0
+			while itemIndex < sections[sectionIndex].items.count {
+				let current = sections[sectionIndex].items[itemIndex].base
+				if current == identifier {
+					from = (sectionIndex, itemIndex)
+				} else if current == toIdentifier {
+					to = (sectionIndex, itemIndex)
+				}
+				if let from = from, let to = to {
+					return (from, to)
+				}
+				itemIndex += 1
+			}
+			sectionIndex += 1
+		}
+		assert(from != nil, "Invalid parameter not satisfying: fromIndex != NSNotFound")
+		assert(to != nil, "Invalid parameter not satisfying: toIndex != NSNotFound")
+		return nil
+	}
 	@inlinable
 	@discardableResult
-	public func moveItem<MovedType, BeforeType>(_ identifier: MovedType, beforeItem: BeforeType) -> _CollectionViewReloadHandler where MovedType: Hashable, BeforeType: Hashable {
+	public func moveItem<MovedType, BeforeType>(_ identifier: MovedType, beforeItem beforeIdentifier: BeforeType) -> _CollectionViewReloadHandler where MovedType: Hashable, BeforeType: Hashable {
+		guard let (from, to) = moveItem(identifier, toIdentifier: beforeIdentifier) else {
+			return reloadHandler
+		}
 		
+		sections[to.section].items.insert(sections[from.section].items.remove(at: from.item), at: to.item)
 		return reloadHandler.commit()
 	}
 	@inlinable
 	@discardableResult
-	public func moveItem<MovedType, AfterType>(_ identifier: MovedType, afterItem: AfterType) -> _CollectionViewReloadHandler where MovedType: Hashable, AfterType: Hashable {
+	public func moveItem<MovedType, AfterType>(_ identifier: MovedType, afterItem afterIdentifier: AfterType) -> _CollectionViewReloadHandler where MovedType: Hashable, AfterType: Hashable {
+		guard let (from, to) = moveItem(identifier, toIdentifier: afterIdentifier) else {
+			return reloadHandler
+		}
 		
+		sections[to.section].items.insert(sections[from.section].items.remove(at: from.item), at: to.item+1)
 		return reloadHandler.commit()
 	}
 	
@@ -1223,8 +1314,62 @@ extension CollectionView.DataManager where DataType == CollectionView.AnyHashabl
 	@inlinable
 	@discardableResult
 	public func reloadItems<ItemIdentifierType>(_ identifiers: [ItemIdentifierType]) -> _CollectionViewReloadHandler where ItemIdentifierType: Hashable {
-		
-		return reloadHandler.commit()
+		func _filter() -> (indexPaths: [IndexPath], ids: [ItemIdentifierType]) {
+			var identifiersSet = Set(identifiers)
+			
+			var indexPaths = [IndexPath]()
+			var ids = [ItemIdentifierType]()
+			for (sectionIndex, element) in sections.enumerated() {
+				for (itemIndex, element) in element.items.enumerated() {
+					if let item = element.base.base as? ItemIdentifierType, identifiersSet.insert(item).inserted {
+						indexPaths.append(IndexPath(item: itemIndex, section: sectionIndex))
+						ids.append(item)
+					}
+				}
+			}
+			return (indexPaths, ids)
+		}
+		if #available(iOS 13.0, *) {
+			guard let diff = diffDataSource else {
+				return reloadHandler
+			}
+			
+			let result = _filter()
+			
+			let reload = _CollectionViewReloadHandler()
+			collectionView?.reloadHandlers.append(reload)
+			reload._reload = { [weak collectionView] animatingDifferences, completion in
+				var snap = diff.snapshot()
+				snap.reloadItems(result.ids.map {
+					.init($0)
+				})
+				diff.apply(snap, animatingDifferences: animatingDifferences, completion: completion)
+				collectionView?.reloadHandlers.removeAll {
+					ObjectIdentifier($0) == ObjectIdentifier(reload)
+				}
+			}
+			return reload
+		} else {
+			guard collectionView?.dataSource != nil else {
+				return reloadHandler
+			}
+			
+			let result = _filter()
+			
+			let reload = _CollectionViewReloadHandler()
+			collectionView?.reloadHandlers.append(reload)
+			reload._reload = { [weak collectionView] animatingDifferences, completion in
+				UIView.animate(withDuration: 0, animations: {
+					collectionView?.reloadItems(at: result.indexPaths)
+				}, completion: { _ in
+					completion?()
+					collectionView?.reloadHandlers.removeAll {
+						ObjectIdentifier($0) == ObjectIdentifier(reload)
+					}
+				})
+			}
+			return reload
+		}
 	}
 	
 	@inlinable
@@ -1241,9 +1386,12 @@ extension CollectionView.DataManager where DataType == CollectionView.AnyHashabl
 	@inlinable
 	@discardableResult
 	public func append<ChildType, ParentType>(_ childItems: [ChildType], to parent: ParentType) -> _CollectionViewReloadHandler where ChildType: Hashable, ParentType: Hashable {
+		
+		let itemsUnique = childItems.unique()
+		filterAddingItem(set: itemsUnique.set)
+		
 		useDiffDataSource = true
-		typealias FindType = CollectionView.ItemData<DataType>
-		func find(item: FindType) -> FindType? {
+		func find(item: CollectionView.ItemData<DataType>) -> CollectionView.ItemData<DataType>? {
 			if item.base == parent {
 				return item
 			} else {
@@ -1259,7 +1407,7 @@ extension CollectionView.DataManager where DataType == CollectionView.AnyHashabl
 			for section in sections {
 				for item in section.items {
 					if let found = find(item: item) {
-						found.subItems.append(contentsOf: childItems.map({
+						found.subItems.append(contentsOf: itemsUnique.array.map({
 							.init(.init($0))
 						}))
 						return
@@ -1274,7 +1422,9 @@ extension CollectionView.DataManager where DataType == CollectionView.AnyHashabl
 	@inlinable
 	@discardableResult
 	public func expand<ParentType>(parents: [ParentType]) -> _CollectionViewReloadHandler where ParentType: Hashable {
+		prepareReload()
 		guard let diff = diffDataSource else { return reloadHandler }
+		collectionView?.forceReload()
 		let reload = _CollectionViewReloadHandler()
 		collectionView?.reloadHandlers.append(reload)
 		reload._reload = { [weak collectionView] animatingDifferences, completion in
@@ -1286,9 +1436,9 @@ extension CollectionView.DataManager where DataType == CollectionView.AnyHashabl
 			}
 			for section in self.sections {
 				var snapshot = diff.snapshot(for: section.section)
-				snapshot.expand(parents.map({
+				snapshot.expand(parents.map {
 					.init($0)
-				}))
+				})
 				diff.apply(snapshot, to: section.section, animatingDifferences: animatingDifferences, completion: _completion)
 				_completion = nil
 			}
@@ -1299,17 +1449,25 @@ extension CollectionView.DataManager where DataType == CollectionView.AnyHashabl
 	@inlinable
 	@discardableResult
 	public func collapse<ParentType>(parents: [ParentType]) -> _CollectionViewReloadHandler where ParentType: Hashable {
+		prepareReload()
 		guard let diff = diffDataSource else { return reloadHandler }
+		collectionView?.forceReload()
 		let reload = _CollectionViewReloadHandler()
-		reload._reload = { animatingDifferences, completion in
-			var completion = completion
+		collectionView?.reloadHandlers.append(reload)
+		reload._reload = { [weak collectionView] animatingDifferences, completion in
+			var _completion: (() -> Void)? = {
+				completion?()
+				collectionView?.reloadHandlers.removeAll {
+					ObjectIdentifier($0) == ObjectIdentifier(reload)
+				}
+			}
 			for section in self.sections {
 				var snapshot = diff.snapshot(for: section.section)
-				snapshot.collapse(parents.compactMap({
+				snapshot.collapse(parents.map {
 					.init($0)
-				}))
-				diff.apply(snapshot, to: section.section, animatingDifferences: animatingDifferences, completion: completion)
-				completion = nil
+				})
+				diff.apply(snapshot, to: section.section, animatingDifferences: animatingDifferences, completion: _completion)
+				_completion = nil
 			}
 		}
 		return reload.commit()
@@ -1320,6 +1478,7 @@ extension CollectionView.DataManager where DataType == CollectionView.AnyHashabl
 	@inlinable
 	public func isExpanded<ParentType>(_ item: ParentType) -> Bool where ParentType: Hashable {
 		guard let diff = diffDataSource else { return false }
+		collectionView?.forceReload()
 		return sections.contains {
 			diff.snapshot(for: $0.section).isExpanded(.init(item))
 		}
@@ -1329,6 +1488,7 @@ extension CollectionView.DataManager where DataType == CollectionView.AnyHashabl
 	@inlinable
 	public func level<ItemIdentifierType>(of item: ItemIdentifierType) -> Int where ItemIdentifierType: Hashable {
 		guard let diff = diffDataSource else { return 0 }
+		collectionView?.forceReload()
 		return sections.map {
 			diff.snapshot(for: $0.section).level(of: .init(item))
 		}.max() ?? 0
@@ -1338,7 +1498,7 @@ extension CollectionView.DataManager where DataType == CollectionView.AnyHashabl
 	@inlinable
 	public func parent<ChildType, ParentType>(of child: ChildType) -> ParentType? where ChildType: Hashable, ParentType: Hashable {
 		guard let diff = diffDataSource else { return nil }
-		
+		collectionView?.forceReload()
 		for section in sections {
 			let snapshot = diff.snapshot(for: section.section)
 			if let parent = snapshot.parent(of: .init(child)) as? ParentType {
@@ -1358,12 +1518,49 @@ extension CollectionView.DataManager where DataType == CollectionView.AnyHashabl
 				})
 			}
 		}
+		collectionView?.forceReload()
 		return sections.flatMap {
 			diff.snapshot(for: $0.section).visibleItems.compactMap {
 				$0.base as? ItemIdentifierType
 			}
 		}
 	}
+	@available(iOS 14.0, tvOS 14.0, *)
+	@inlinable
+	public func visibleItems<ItemIdentifierType, SectionIdentifierType>(inSection identifier: SectionIdentifierType) -> [ItemIdentifierType]? where ItemIdentifierType: Hashable, SectionIdentifierType : Hashable {
+		guard let diff = diffDataSource else {
+			return sections.first {
+				$0.section == identifier
+			}?.items.compactMap {
+				$0.base.base as? ItemIdentifierType
+			}
+		}
+		collectionView?.forceReload()
+		return sections.first {
+			$0.section == identifier
+		}.map {
+			diff.snapshot(for: $0.section).visibleItems.compactMap {
+				$0.base as? ItemIdentifierType
+			}
+		}
+	}
+	@available(iOS 14.0, tvOS 14.0, *)
+	@inlinable
+	public func visibleItems<ItemIdentifierType>(atSection index: Int) -> [ItemIdentifierType]? where ItemIdentifierType: Hashable {
+		guard index < sections.count else {
+			return nil
+		}
+		guard let diff = diffDataSource else {
+			return sections[index].items.compactMap {
+				$0.base.base as? ItemIdentifierType
+			}
+		}
+		collectionView?.forceReload()
+		return diff.snapshot(for: sections[index].section).visibleItems.compactMap {
+			$0.base as? ItemIdentifierType
+		}
+	}
+	
 	@available(iOS 14.0, *)
 	@inlinable
 	public func isVisible<ItemIdentifierType>(_ item: ItemIdentifierType) -> Bool where ItemIdentifierType: Hashable {
@@ -1374,12 +1571,29 @@ extension CollectionView.DataManager where DataType == CollectionView.AnyHashabl
 				}
 			}
 		}
+		guard sections.contains(where:{
+			$0.items.contains {
+				$0.contains(item)
+			}
+		}) else {
+			assertionFailure("Invalid parameter not satisfying: index != NSNotFound")
+			return false
+		}
+		collectionView?.forceReload()
 		return sections.contains {
 			diff.snapshot(for: $0.section).isVisible(.init(item))
 		}
 	}
 	
-	
+	@available(iOS 14.0, tvOS 14.0, *)
+	@inlinable
+	public func rootItems<ItemIdentifierType>() -> [ItemIdentifierType] where ItemIdentifierType: Hashable {
+		sections.flatMap {
+			$0.items.compactMap {
+				$0.base.base as? ItemIdentifierType
+			}
+		}
+	}
 	@available(iOS 14.0, tvOS 14.0, *)
 	@inlinable
 	public func rootItems<ItemIdentifierType, SectionIdentifierType>(inSection identifier: SectionIdentifierType) -> [ItemIdentifierType]? where ItemIdentifierType: Hashable, SectionIdentifierType: Hashable {

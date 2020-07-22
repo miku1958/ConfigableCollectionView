@@ -12,7 +12,7 @@ import SwiftUI
 
 class ViewController: UIViewController {
 	let collectionView = CollectionView(layout: UICollectionViewFlowLayout())
-	let show = false
+	let show = true
 	override func viewDidLoad() {
 		super.viewDidLoad()
 		collectionView.register(
@@ -57,6 +57,7 @@ class ViewController: UIViewController {
 			)
 		}
 //		collectionView.dataSource = nil
+		collectionView.dataManager.appendSections(["s1"])
 		collectionView.dataManager.append(["abc"])
 		collectionView.dataManager.append([123])
 		view.addSubview(collectionView)

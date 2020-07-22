@@ -6,12 +6,12 @@
 //
 
 import Foundation
-import SwiftUI
 
 public protocol View { }
 
 extension UIView: View { }
 extension Optional: View { }
+
 @_functionBuilder
 public struct ViewBuilder {
 	public static func buildBlock<Content>(_ content: Content) -> Content where Content: View {
