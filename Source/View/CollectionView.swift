@@ -43,6 +43,7 @@ public class CollectionView<DataType, VerifyType>: UICollectionView {
 			}
 		}
 	}
+	@inline(__always)
 	func resetANewDelegateProxy() {
 		let newDelegate = CollectionViewDelegateProxy(proxy: collectionDelegate)
 		self.collectionDelegate = newDelegate
@@ -113,6 +114,7 @@ public class CollectionView<DataType, VerifyType>: UICollectionView {
 }
 
 extension CollectionView {
+	@inline(__always)
 	func forceReload() {
 		for handler in reloadHandlers {
 			handler.forceReload()
@@ -128,6 +130,7 @@ extension CollectionView where VerifyType == Any, DataType == Any {
 		self._dataManager = dataManager
 	}
 	
+	@inline(__always)
 	public var dataManager: DataManager<AnyHashable> {
 		_dataManager as! DataManager<AnyHashable>
 	}
@@ -140,6 +143,7 @@ extension CollectionView where VerifyType == Void, DataType: Hashable {
 		let dataManager = DataManager<DataType>(collectionView: self)
 		self._dataManager = dataManager
 	}
+	@inline(__always)
 	public var dataManager: DataManager<DataType> {
 		_dataManager as! DataManager<DataType>
 	}
@@ -167,6 +171,7 @@ public extension CollectionView where VerifyType == Void {
 }
 
 extension CollectionView {
+	@inline(__always)
 	func register<View, DataType>(view: @escaping () -> View, _ builds: [RegisteredView<View, DataType>]) {
 		
 		var registeredView = RegisteredView<View, DataType>(view: view)
@@ -271,6 +276,7 @@ extension CollectionView {
 		/// 给这个 View 一个默认尺寸
 		static public func size(_ act: @escaping (UICollectionView) -> CGSize) -> R { R(size: act) }
 		
+		@inline(__always)
 		mutating func bind(from r: R) {
 			if let act = r._view { _view = act }
 			if let act = r._when { _when = act }
@@ -283,6 +289,7 @@ extension CollectionView {
 }
 
 extension CollectionView {
+	@usableFromInline
 	func cell(at indexPath: IndexPath, item: Any?) -> UICollectionViewCell? {
 		guard
 			let registerd = registeredView(for: indexPath, item: item)
@@ -382,6 +389,7 @@ extension CollectionView {
 
 extension UICollectionViewCell {
 	private static var CellFirstTimeDequeuedKey: Void?
+	@inline(__always)
 	var isFirstTimeDequeued: Bool {
 		set {
 			objc_setAssociatedObject(self, &Self.CellFirstTimeDequeuedKey, newValue, .OBJC_ASSOCIATION_RETAIN)

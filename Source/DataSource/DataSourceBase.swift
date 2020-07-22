@@ -84,6 +84,7 @@ extension CollectionView {
 			}
 		}
 	}
+	
 	class DataSourceBase<DataType>: NSObject, UICollectionViewDataSource {
 		var sections = [SectionData<DataType>]()
 		weak var _collectionView: CollectionView?
