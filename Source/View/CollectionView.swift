@@ -166,7 +166,7 @@ public extension CollectionView where VerifyType == Void {
 	}
 }
 
-public extension CollectionView {
+extension CollectionView {
 	func register<View, DataType>(view: @escaping () -> View, _ builds: [RegisteredView<View, DataType>]) {
 		
 		var registeredView = RegisteredView<View, DataType>(view: view)
@@ -240,7 +240,7 @@ public extension CollectionView {
 		}
 	}
 	
-	struct RegisteredView<View, DataType> where View: UIView {
+	public struct RegisteredView<View, DataType> where View: UIView {
 		public typealias R = RegisteredView<View, DataType>
 		var _view: (() -> View)?
 		var _config: ((View, DataType) -> Void)?

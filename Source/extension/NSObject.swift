@@ -11,7 +11,8 @@ protocol Mapable {
 	
 }
 extension Mapable {
-	@inline(__always) public func map<T>(_ transform: (Self) throws -> T) rethrows -> T {
+	@inline(__always)
+	func map<T>(_ transform: (Self) throws -> T) rethrows -> T {
 		try transform(self)
 	}
 }
