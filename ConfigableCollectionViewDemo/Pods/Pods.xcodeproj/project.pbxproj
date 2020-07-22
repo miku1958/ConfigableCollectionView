@@ -19,8 +19,13 @@
 		B28444042A41C8D05CC1E9FA02C3A325 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3212113385A8FBBDB272BD23C409FF61 /* Foundation.framework */; };
 		BBE35C01A1FA262B0AE41A9CF1976050 /* CollectionViewInvadeProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD69AD0B4C19E73FF2B4B32F00FDDA60 /* CollectionViewInvadeProtocol.swift */; };
 		CD87FAF0BE096BD99B4A986D51C2E01B /* CollectionViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = B842A86D083B00199C903BEDE4B841B2 /* CollectionViewCell.swift */; };
+		FF43ED4524C4876E00ED3EEA /* AnyHashable.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF43ED4424C4876E00ED3EEA /* AnyHashable.swift */; };
+		FF43ED4624C494B800ED3EEA /* DataSourceDiff13.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFD1107324BAF5A3003EEAEF /* DataSourceDiff13.swift */; };
 		FF64ABF424A9BC4400FEAE04 /* NSObject.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF64ABF324A9BC4400FEAE04 /* NSObject.swift */; };
+		FF68368924C5DAD400266B8B /* Array.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF68368824C5DAD400266B8B /* Array.swift */; };
 		FFB927A224B5C3CB0071D3AB /* DataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFB927A124B5C3CB0071D3AB /* DataManager.swift */; };
+		FFD1106E24BADBD2003EEAEF /* DataSourceBase.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFD1106D24BADBD2003EEAEF /* DataSourceBase.swift */; };
+		FFD1107224BAEE46003EEAEF /* ReloadHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFD1107124BAEE46003EEAEF /* ReloadHandler.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -60,8 +65,13 @@
 		C7A48B6E38F03AC970B45C45070E8E93 /* Pods-ConfigableCollectionViewDemo-acknowledgements.markdown */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = "Pods-ConfigableCollectionViewDemo-acknowledgements.markdown"; sourceTree = "<group>"; };
 		C97EB2F6719B22410A791768C1D033E8 /* Pods-ConfigableCollectionViewDemo-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "Pods-ConfigableCollectionViewDemo-dummy.m"; sourceTree = "<group>"; };
 		DA53D7C2583F6019DAA72F04BBD75D63 /* ConfigableCollectionView.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = ConfigableCollectionView.debug.xcconfig; sourceTree = "<group>"; };
+		FF43ED4424C4876E00ED3EEA /* AnyHashable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnyHashable.swift; sourceTree = "<group>"; };
 		FF64ABF324A9BC4400FEAE04 /* NSObject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NSObject.swift; sourceTree = "<group>"; };
+		FF68368824C5DAD400266B8B /* Array.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Array.swift; sourceTree = "<group>"; };
 		FFB927A124B5C3CB0071D3AB /* DataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataManager.swift; sourceTree = "<group>"; };
+		FFD1106D24BADBD2003EEAEF /* DataSourceBase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataSourceBase.swift; sourceTree = "<group>"; };
+		FFD1107124BAEE46003EEAEF /* ReloadHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReloadHandler.swift; sourceTree = "<group>"; };
+		FFD1107324BAF5A3003EEAEF /* DataSourceDiff13.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataSourceDiff13.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -126,12 +136,10 @@
 		938087178E31B6F4FD3FBEDFF594BE02 /* ConfigableCollectionView */ = {
 			isa = PBXGroup;
 			children = (
+				FFD1107024BAEDD2003EEAEF /* View */,
+				FFD1106C24BADBC0003EEAEF /* DataSource */,
 				FF64ABF224A9BC3500FEAE04 /* extension */,
-				54B6E76503018CBFCEBF4DE2CFEFE3A3 /* CollectionView.swift */,
-				FFB927A124B5C3CB0071D3AB /* DataManager.swift */,
-				B842A86D083B00199C903BEDE4B841B2 /* CollectionViewCell.swift */,
-				293FF2E77BB0C7035584145CE4651A6B /* CollectionViewDelegateProxy.h */,
-				05413A44AB6B515BC3FBA1E567E14076 /* CollectionViewDelegateProxy.m */,
+				FFD1106F24BAEDC8003EEAEF /* CollectionViewDelegateProxy */,
 				BD69AD0B4C19E73FF2B4B32F00FDDA60 /* CollectionViewInvadeProtocol.swift */,
 				B4BD7AB751E6E9E7DB50160B37B1CD19 /* ConfigableCollectionView.podspec */,
 				2B18668006BBF720F9B7BFB86FCE141C /* Pod */,
@@ -197,8 +205,39 @@
 			isa = PBXGroup;
 			children = (
 				FF64ABF324A9BC4400FEAE04 /* NSObject.swift */,
+				FF68368824C5DAD400266B8B /* Array.swift */,
 			);
 			path = extension;
+			sourceTree = "<group>";
+		};
+		FFD1106C24BADBC0003EEAEF /* DataSource */ = {
+			isa = PBXGroup;
+			children = (
+				FFB927A124B5C3CB0071D3AB /* DataManager.swift */,
+				FFD1106D24BADBD2003EEAEF /* DataSourceBase.swift */,
+				FFD1107324BAF5A3003EEAEF /* DataSourceDiff13.swift */,
+				FF43ED4424C4876E00ED3EEA /* AnyHashable.swift */,
+			);
+			path = DataSource;
+			sourceTree = "<group>";
+		};
+		FFD1106F24BAEDC8003EEAEF /* CollectionViewDelegateProxy */ = {
+			isa = PBXGroup;
+			children = (
+				293FF2E77BB0C7035584145CE4651A6B /* CollectionViewDelegateProxy.h */,
+				05413A44AB6B515BC3FBA1E567E14076 /* CollectionViewDelegateProxy.m */,
+			);
+			path = CollectionViewDelegateProxy;
+			sourceTree = "<group>";
+		};
+		FFD1107024BAEDD2003EEAEF /* View */ = {
+			isa = PBXGroup;
+			children = (
+				54B6E76503018CBFCEBF4DE2CFEFE3A3 /* CollectionView.swift */,
+				FFD1107124BAEE46003EEAEF /* ReloadHandler.swift */,
+				B842A86D083B00199C903BEDE4B841B2 /* CollectionViewCell.swift */,
+			);
+			path = View;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -312,11 +351,16 @@
 			buildActionMask = 2147483647;
 			files = (
 				A3CFA9EC1949F9DDD16F81565FCF21C8 /* CollectionView.swift in Sources */,
+				FFD1107224BAEE46003EEAEF /* ReloadHandler.swift in Sources */,
 				FFB927A224B5C3CB0071D3AB /* DataManager.swift in Sources */,
 				CD87FAF0BE096BD99B4A986D51C2E01B /* CollectionViewCell.swift in Sources */,
 				71E7F38403C8C170CFA6288C66E15D87 /* CollectionViewDelegateProxy.m in Sources */,
 				FF64ABF424A9BC4400FEAE04 /* NSObject.swift in Sources */,
 				BBE35C01A1FA262B0AE41A9CF1976050 /* CollectionViewInvadeProtocol.swift in Sources */,
+				FF43ED4524C4876E00ED3EEA /* AnyHashable.swift in Sources */,
+				FFD1106E24BADBD2003EEAEF /* DataSourceBase.swift in Sources */,
+				FF68368924C5DAD400266B8B /* Array.swift in Sources */,
+				FF43ED4624C494B800ED3EEA /* DataSourceDiff13.swift in Sources */,
 				6AE7ABACF97ABF27708F1E631700F528 /* ConfigableCollectionView-dummy.m in Sources */,
 				1C0B2E1B79C92A17F4D987AF00AA8065 /* ConfigableCollectionView.podspec in Sources */,
 			);

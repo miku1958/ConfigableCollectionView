@@ -8,6 +8,7 @@
 
 import UIKit
 import ConfigableCollectionView
+import SwiftUI
 
 class ViewController: UIViewController {
 	let collectionView = CollectionView(layout: UICollectionViewFlowLayout())
@@ -53,15 +54,14 @@ class ViewController: UIViewController {
 			)
 		}
 //		collectionView.dataSource = nil
-		collectionView.dataManager.appendToLast(["abc"])
-		collectionView.dataManager.appendToLast([123])
+		collectionView.dataManager.append(["abc"])
+		collectionView.dataManager.append([123])
 		view.addSubview(collectionView)
 		collectionView.frame = view.bounds
 		
 		collectionView.autoresizingMask = [.flexibleHeight, .flexibleWidth]
+		
 	}
-
-
 }
 protocol protocolA {
 

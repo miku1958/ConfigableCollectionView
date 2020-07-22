@@ -10,10 +10,12 @@ import UIKit
 
 public var CollectionViewDeletegateInvade: CollectionViewInvadeProtocol.Type?
 public class CollectionView<DataType, VerifyType>: UICollectionView {
-	public var dataManager: DataManager!
-	var registerViews = [(dataType: Any.Type, registerd: _RegisteredView)]()
+	var _dataManager: CollectionViewDataManager!
+	@usableFromInline
+	var reloadHandlers = [_CollectionViewReloadHandler]()
+	/// [dataType: registerd]
+	var registerViews = [ObjectIdentifier: [_RegisteredView]]()
 	var cachingViews = [String: UIView]()
-	var indexToIdentifier = [IndexPath: String]()
 	
 	// swiftlint:disable weak_delegate
 	lazy var collectionDelegate = CollectionViewDelegateProxy(collection: self)
@@ -24,6 +26,7 @@ public class CollectionView<DataType, VerifyType>: UICollectionView {
 // MARK: - override
 	public override weak var dataSource: UICollectionViewDataSource? {
 		didSet {
+			self.collectionDelegate.addDatasources(dataSource)
 			super.dataSource = collectionDelegate
 		}
 	}
@@ -49,8 +52,6 @@ public class CollectionView<DataType, VerifyType>: UICollectionView {
 	override init(frame: CGRect, collectionViewLayout layout: UICollectionViewLayout) {
 		super.init(frame: frame, collectionViewLayout: layout)
 		
-		dataManager = DataManager(collectionView: self)
-		
 		let delegate = Delegate()
 		delegate.collection = self
 		
@@ -62,16 +63,6 @@ public class CollectionView<DataType, VerifyType>: UICollectionView {
 		backgroundColor = .clear
 		
 		register(CollectionViewCell.self, forCellWithReuseIdentifier: "empty")
-	}
-	public override func reloadData() {
-//		if #available(iOS 14.0, *) {
-//
-//		} else if #available(iOS 13.0, *) {
-//
-//		} else {
-			dataManager.registerBelow13()
-//		}
-		super.reloadData()
 	}
 	
 	public override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
@@ -121,16 +112,36 @@ public class CollectionView<DataType, VerifyType>: UICollectionView {
 	required init?(coder: NSCoder) { nil }
 }
 
+extension CollectionView {
+	func forceReload() {
+		for handler in reloadHandlers {
+			handler.forceReload()
+		}
+	}
+}
+
 // MARK: - initialize
 extension CollectionView where VerifyType == Any, DataType == Any {
 	public convenience init(layout: UICollectionViewLayout) {
 		self.init(frame: .zero, collectionViewLayout: layout)
+		let dataManager = DataManager<AnyHashable>(collectionView: self)
+		self._dataManager = dataManager
+	}
+	
+	public var dataManager: DataManager<AnyHashable> {
+		_dataManager as! DataManager<AnyHashable>
 	}
 }
 
 extension CollectionView where VerifyType == Void, DataType: Hashable {
 	public convenience init(layout: UICollectionViewLayout, dataType: DataType.Type) {
 		self.init(frame: .zero, collectionViewLayout: layout)
+		
+		let dataManager = DataManager<DataType>(collectionView: self)
+		self._dataManager = dataManager
+	}
+	public var dataManager: DataManager<DataType> {
+		_dataManager as! DataManager<DataType>
 	}
 }
 
@@ -163,13 +174,26 @@ public extension CollectionView {
 			registeredView.bind(from: build)
 		}
 		let reuseIdentifier = "\(DataType.self)-\(View.self)"
-		registerViews.append((DataType.self, .init(registeredView, reuseIdentifier: reuseIdentifier)))
+		registerViews[ObjectIdentifier(DataType.self), default: []].append(.init(registeredView, reuseIdentifier: reuseIdentifier))
 		if View.self is UICollectionViewCell.Type {
 			register(View.self, forCellWithReuseIdentifier: reuseIdentifier)
 		} else {
 			register(CollectionViewCell.self, forCellWithReuseIdentifier: reuseIdentifier)
 		}
 	}
+	
+	@inline(__always)
+	func registeredView(for indexPath: IndexPath, item: Any?) -> _RegisteredView? {
+		let item = item ?? _dataManager.element(for: indexPath)
+		if item is CollectionView.AnyHashable {
+			fatalError()
+		}
+		guard let registerViews = registerViews[ObjectIdentifier(type(of: item))] else { return nil }
+		return registerViews.first {
+			$0.when(item)
+		} ?? registerViews.first
+	}
+	
 	struct _RegisteredView {
 		let view: () -> UIView
 		let config: (UIView, Any) -> Void
@@ -259,57 +283,44 @@ public extension CollectionView {
 }
 
 extension CollectionView {
-	class Delegate: NSObject, UICollectionViewDelegateFlowLayout, UICollectionViewDataSource {
-		
-		weak var collection: CollectionView?
-		
-		// MARK: - UICollectionViewDataSource
-		func numberOfSections(in collectionView: UICollectionView) -> Int {
-			collection?.dataManager._datas.count ?? 0
+	func cell(at indexPath: IndexPath, item: Any?) -> UICollectionViewCell? {
+		guard
+			let registerd = registeredView(for: indexPath, item: item)
+		else {
+			return nil
 		}
-		func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-			collection?.dataManager._datas[section].items.count ?? 0
-		}
+		let cell = dequeueReusableCell(withReuseIdentifier: registerd.reuseIdentifier, for: indexPath)
 		
-		func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-			guard
-				let collection = collection,
-				let identifier = collection.indexToIdentifier[indexPath],
-				let registerd = collection.registerViews.first(where: { $0.registerd.reuseIdentifier == identifier })?.registerd
-				else {
-					return collectionView.dequeueReusableCell(withReuseIdentifier: "empty", for: indexPath)
-			}
-			let cell = collection.dequeueReusableCell(withReuseIdentifier: registerd.reuseIdentifier, for: indexPath)
-			
-			if let cell = cell as? CollectionViewCell {
-				if cell.createSubview == nil {
-					cell.createSubview = registerd.view
-					if let view = cell.subview {
-						registerd.created(view)
-					}
-				}
+		if let cell = cell as? CollectionViewCell {
+			if cell.createSubview == nil {
+				cell.createSubview = registerd.view
 				if let view = cell.subview {
-					let element = collection.dataManager.element(for: indexPath)
-					// 这个不能放到willDisplay里去调, 不然如果是自适应尺寸的cell会出错
-					registerd.config(view, element)
+					registerd.created(view)
 				}
-			} else { // 注册的 View 是 UICollectionViewCell
-				if cell.isFirstDequeued {
-					registerd.created(cell)
-					cell.isFirstDequeued = false
-				}
-				let element = collection.dataManager.element(for: indexPath)
-				// 这个不能放到willDisplay里去调, 不然如果是自适应尺寸的cell会出错
-				registerd.config(cell, element)
 			}
-			return cell
+			if let view = cell.subview {
+				let element = _dataManager.element(for: indexPath)
+				// 这个不能放到willDisplay里去调, 不然如果是自适应尺寸的cell会出错
+				registerd.config(view, element)
+			}
+		} else { // 注册的 View 是 UICollectionViewCell
+			if cell.isFirstTimeDequeued {
+				registerd.created(cell)
+				cell.isFirstTimeDequeued = false
+			}
+			let element = _dataManager.element(for: indexPath)
+			// 这个不能放到willDisplay里去调, 不然如果是自适应尺寸的cell会出错
+			registerd.config(cell, element)
 		}
+		return cell
+	}
+	class Delegate: NSObject, UICollectionViewDelegateFlowLayout {
+		weak var collection: CollectionView?
 	
 		// MARK: - UICollectionViewDelegateFlowLayout
 		func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
 			guard let collection = collection else { return .zero }
-			if let identifier = collection.indexToIdentifier[indexPath],
-				let registerd = collection.registerViews.first(where: { $0.registerd.reuseIdentifier == identifier })?.registerd,
+			if let registerd = collection.registeredView(for: indexPath, item: nil),
 				let size = registerd.size(collectionView) {
 				return size
 			} else if let delegates = (collection.collectionDelegate.customDelegates.allObjects as? [UICollectionViewDelegateFlowLayout]) {
@@ -334,8 +345,7 @@ extension CollectionView {
 		func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
 			guard
 				let collection = collection,
-				let identifier = collection.indexToIdentifier[indexPath],
-				let registerd = collection.registerViews.first(where: { $0.registerd.reuseIdentifier == identifier })?.registerd,
+				let registerd = collection.registeredView(for: indexPath, item: nil),
 				let cell = collection.cellForItem(at: indexPath) as? CollectionViewCell,
 				let view = cell.subview
 				else {
@@ -343,7 +353,7 @@ extension CollectionView {
 			}
 			
 			let call = {
-				let element = collection.dataManager.element(for: indexPath)
+				let element = collection._dataManager.element(for: indexPath)
 				guard
 					!registerd.tap(view, element), // 处理自定义的tap, 如果成功则取消后续操作
 					let delegates = collection.collectionDelegate.customDelegates.allObjects as? [UICollectionViewDelegate]
@@ -363,18 +373,22 @@ extension CollectionView {
 
 extension CollectionView {
 	public func scrollToEnd(animated: Bool = true) {
-		scrollToItem(at: dataManager.lastIndexPath, at: .right, animated: animated)
+		guard let lastIndexPath = _dataManager.lastIndexPath else {
+			return
+		}
+		scrollToItem(at: lastIndexPath, at: .right, animated: animated)
 	}
 }
 
 extension UICollectionViewCell {
-	private static var CellFirstDequeuedTag: Void?
-	var isFirstDequeued: Bool {
+	private static var CellFirstTimeDequeuedKey: Void?
+	var isFirstTimeDequeued: Bool {
 		set {
-			objc_setAssociatedObject(self, &Self.CellFirstDequeuedTag, newValue, .OBJC_ASSOCIATION_RETAIN)
+			objc_setAssociatedObject(self, &Self.CellFirstTimeDequeuedKey, newValue, .OBJC_ASSOCIATION_RETAIN)
 		}
 		get {
-			objc_getAssociatedObject(self, &Self.CellFirstDequeuedTag) as? Bool ?? true
+			objc_getAssociatedObject(self, &Self.CellFirstTimeDequeuedKey) as? Bool ?? true
 		}
 	}
 }
+
