@@ -12,21 +12,24 @@ import SwiftUI
 
 class ViewController: UIViewController {
 	let collectionView = CollectionView(layout: UICollectionViewFlowLayout())
+	let show = false
 	override func viewDidLoad() {
 		super.viewDidLoad()
 		collectionView.register(
 			dataType: String.self,
-			view: {
-				UILabel()
+			view: { [weak self] in
+				if let show = self?.show, show {
+					UILabel()
+				}
 			},
-			.config { (view, data) in
-				view.text = "\(data)"
+			.config {
+				$0.view.text = "\($0.data)"
 			},
 			.size { _ in
 				CGSize(width: 100, height: 100)
 			},
-			.tap { view, data in
-				view.backgroundColor = .red
+			.tap {
+				$0.view.backgroundColor = .red
 			}
 		)
 		if #available(iOS 14.0, *) {
@@ -34,10 +37,10 @@ class ViewController: UIViewController {
 			collectionView.register(
 				dataType: Int.self,
 				view: UICollectionViewListCell(),
-				.config { (view, data) in
-					var config = view.defaultContentConfiguration()
-					config.text =  "\(data)"
-					view.contentConfiguration = config
+				.config {
+					var config = $0.view.defaultContentConfiguration()
+					config.text =  "\($0.data)"
+					$0.view.contentConfiguration = config
 				}
 			)
 			#endif
@@ -45,11 +48,11 @@ class ViewController: UIViewController {
 			collectionView.register(
 				dataType: Int.self,
 				view: UIView(),
-				.config { (view, data) in
-					
+				.config { _ in
+
 				},
-				.tap { view, data in
-					view.backgroundColor = .red
+				.tap {
+					$0.view.backgroundColor = .red
 				}
 			)
 		}
