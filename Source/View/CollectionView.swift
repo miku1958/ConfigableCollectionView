@@ -12,7 +12,7 @@ public var CollectionViewDeletegateInvade: CollectionViewInvadeProtocol.Type?
 public class CollectionView<DataType, VerifyType>: UICollectionView {
 	var _dataManager: CollectionViewDataManager!
 	@usableFromInline
-	var reloadHandlers = [_CollectionViewReloadHandler]()
+	var reloadHandlers = [_CollectionViewReloadHandler()]
 	/// [dataType: registerd]
 	var registerViews = [ObjectIdentifier: [_RegisteredView]]()
 	var cachingViews = [String: UIView]()
@@ -115,6 +115,7 @@ public class CollectionView<DataType, VerifyType>: UICollectionView {
 
 extension CollectionView {
 	@inline(__always)
+	@usableFromInline
 	func forceReload() {
 		for handler in reloadHandlers {
 			handler.forceReload()
@@ -128,6 +129,7 @@ extension CollectionView where VerifyType == Any, DataType == Any {
 		self.init(frame: .zero, collectionViewLayout: layout)
 		let dataManager = DataManager<AnyHashable>(collectionView: self)
 		self._dataManager = dataManager
+		dataManager.prepareReload()
 	}
 	
 	@inline(__always)
@@ -142,6 +144,7 @@ extension CollectionView where VerifyType == Void, DataType: Hashable {
 		
 		let dataManager = DataManager<DataType>(collectionView: self)
 		self._dataManager = dataManager
+		dataManager.prepareReload()
 	}
 	@inline(__always)
 	public var dataManager: DataManager<DataType> {
@@ -153,35 +156,35 @@ extension CollectionView where VerifyType == Void, DataType: Hashable {
 public extension CollectionView where VerifyType == Any {
 	/// 使用多个RegisteredView注册Cell
 	/// view: 创建View, 独立开是为了复用 View, 如果view为UICollectionViewCell, 则初始化无效(不会调用), 会使用UICollectionView.dequeue来实现
-	func register<View, DataType>(dataType: DataType.Type, view: @escaping () -> View, _ builds: RegisteredView<View, DataType>...) {
+	func register<View, DataType>(dataType: DataType.Type, @ViewBuilder view: @escaping () -> View?, _ builds: RegisteredView<View, DataType>...) {
 		register(view: view, builds)
 	}
-	func register<View, DataType>(dataType: DataType.Type, view: @escaping @autoclosure () -> View, _ builds: RegisteredView<View, DataType>...) {
+	func register<View, DataType>(dataType: DataType.Type, view: @escaping @autoclosure () -> View?, _ builds: RegisteredView<View, DataType>...) {
 		register(view: view, builds)
 	}
 }
 public extension CollectionView where VerifyType == Void {
 	/// 使用多个RegisteredView注册Cell
-	func register<View>(view: @escaping () -> View, _ builds: RegisteredView<View, DataType>...) {
+	func register<ViewType>(@ViewBuilder view: @escaping () -> ViewType?, _ builds: RegisteredView<ViewType, DataType>...) where ViewType: View {
 		register(view: view, builds)
 	}
-	func register<View>(view: @escaping @autoclosure () -> View, _ builds: RegisteredView<View, DataType>...) {
+	func register<ViewType>(view: @escaping @autoclosure () -> ViewType?, _ builds: RegisteredView<ViewType, DataType>...) where ViewType: View {
 		register(view: view, builds)
 	}
 }
 
 extension CollectionView {
 	@inline(__always)
-	func register<View, DataType>(view: @escaping () -> View, _ builds: [RegisteredView<View, DataType>]) {
+	func register<ViewType, DataType>(view: @escaping () -> ViewType?, _ builds: [RegisteredView<ViewType, DataType>]) where ViewType: View {
 		
-		var registeredView = RegisteredView<View, DataType>(view: view)
+		var registeredView = RegisteredView<ViewType, DataType>(_view: view)
 		for build in builds {
 			registeredView.bind(from: build)
 		}
 		let reuseIdentifier = "\(DataType.self)-\(View.self)"
 		registerViews[ObjectIdentifier(DataType.self), default: []].append(.init(registeredView, reuseIdentifier: reuseIdentifier))
-		if View.self is UICollectionViewCell.Type {
-			register(View.self, forCellWithReuseIdentifier: reuseIdentifier)
+		if let type = ViewType.self as? UICollectionViewCell.Type {
+			register(type, forCellWithReuseIdentifier: reuseIdentifier)
 		} else {
 			register(CollectionViewCell.self, forCellWithReuseIdentifier: reuseIdentifier)
 		}
@@ -195,95 +198,167 @@ extension CollectionView {
 		}
 		guard let registerViews = registerViews[ObjectIdentifier(type(of: item))] else { return nil }
 		return registerViews.first {
-			$0.when(item)
-		} ?? registerViews.first
+			$0.when?(.init(collectionView: self, data: $0, indexPath: indexPath)) ?? false
+		} ?? registerViews.first(where: {
+			$0.when == nil
+		})
 	}
 	
 	struct _RegisteredView {
-		let view: () -> UIView
-		let config: (UIView, Any) -> Void
-		let when: (Any) -> Bool
+		struct Data {
+			let collectionView: CollectionView
+			let data: Any
+			let indexPath: IndexPath
+		}
+		struct DataWithView {
+			let collectionView: CollectionView
+			let view: UIView
+			let data: Any
+			let indexPath: IndexPath
+		}
+		let view: () -> UIView?
+		let config: (DataWithView) -> Void
+		let when: ((Data) -> Bool)?
 		
-		let created: ((UIView) -> Void)
-		let tap: (UIView, Any) -> Bool
-		let size: ((UICollectionView) -> CGSize?)
+		let tap: (DataWithView) -> Bool
+		let size: ((Data) -> CGSize?)
+		
+		let willDisplay: ((DataWithView) -> Void)
+		let endDisplay: ((DataWithView) -> Void)
 		
 		let reuseIdentifier: String
 		
 		init<View, DataType>(_ _view: RegisteredView<View, DataType>, reuseIdentifier: String) {
 			self.reuseIdentifier = reuseIdentifier
-			self.view = _view._view ?? UIView.init
+			self.view =  {
+				_view._view?() as? UIView
+			}
+			typealias Data = RegisteredView<View, DataType>.Data
+			typealias DataWithView = RegisteredView<View, DataType>.DataWithView
 			
-			self.when = { data in
-				guard let when = _view._when, let data = data as? DataType else { return false }
-				return when(data)
+			if let when = _view._when {
+				self.when = { data in
+					guard let data = Data(data: data) else { return false }
+					return when(data)
+				}
+			} else {
+				self.when = nil
 			}
 			
-			self.config = { view, data in
-				if let view = view as? View, let data = data as? DataType {
-					_view._config?(view, data)
+			self.config = { data in
+				if let data = DataWithView(data: data) {
+					_view._config?(data)
 				}
 			}
 			
-			self.created = { view in
-				if let view = view as? View {
-					_view._created?(view)
-				}
-			}
-			
-			self.tap = { view, data in
-				if let tap = _view._tap, let view = view as? View, let data = data as? DataType {
-					tap(view, data)
+			self.tap = { data in
+				if let tap = _view._tap, let data = DataWithView(data: data) {
+					tap(data)
 					return true
 				}
 				return false
 			}
 			
-			self.size = {
-				_view._size?($0)
+			self.size = { data in
+				if let size = _view._size, let data = Data(data: data) {
+					return size(data)
+				}
+				return nil
+			}
+			
+			self.willDisplay = { data in
+				if let data = DataWithView(data: data) {
+					_view._willDisplay?(data)
+				}
+			}
+			
+			self.endDisplay = { data in
+				if let data = DataWithView(data: data) {
+					_view._endDisplay?(data)
+				}
 			}
 		}
 	}
 	
-	public struct RegisteredView<View, DataType> where View: UIView {
-		public typealias R = RegisteredView<View, DataType>
-		var _view: (() -> View)?
-		var _config: ((View, DataType) -> Void)?
-		var _when: ((DataType) -> Bool)?
-		
-		var _created: ((View) -> Void)?
-		var _tap: ((View, DataType) -> Void)?
-		
-		var _size: ((UICollectionView) -> CGSize)?
-		
-		init(view: (() -> View)? = nil, config: ((View, DataType) -> Void)? = nil, when: ((DataType) -> Bool)? = nil, created: ((View) -> Void)? = nil, tap: ((View, DataType) -> Void)? = nil, size: ((UICollectionView) -> CGSize)? = nil) {
-			_view = view
-			_config = config
-			_when = when
-			_created = created
-			_tap = tap
-			_size = size
+	public struct RegisteredView<ViewType, DataType> where ViewType: View {
+		public struct Data {
+			public let collectionView: CollectionView
+			public let data: DataType
+			public let indexPath: IndexPath
+			
+			init?(data from: _RegisteredView.Data) {
+				guard let data = from.data as? DataType else {
+					return nil
+				}
+				self.data = data
+				self.indexPath = from.indexPath
+				self.collectionView = from.collectionView
+			}
 		}
+		public struct DataWithView {
+			public let collectionView: CollectionView
+			public let view: ViewType
+			public let data: DataType
+			public let indexPath: IndexPath
+			
+			init?(data from: _RegisteredView.DataWithView) {
+				guard let view = from.view as? ViewType, let data = from.data as? DataType else {
+					return nil
+				}
+				self.view = view
+				self.data = data
+				self.indexPath = from.indexPath
+				self.collectionView = from.collectionView
+			}
+		}
+		public typealias R = RegisteredView<ViewType, DataType>
+		var _view: (() -> ViewType?)?
+		var _config: ((DataWithView) -> Void)?
+		var _when: ((Data) -> Bool)?
+		
+		var _tap: ((DataWithView) -> Void)?
+		
+		var _size: ((Data) -> CGSize)?
+		
+		var _willDisplay: ((DataWithView) -> Void)?
+		var _endDisplay: ((DataWithView) -> Void)?
 		
 		/// 决定什么时候需要分配这个 View
-		static public func when(_ act: @escaping (DataType) -> Bool) -> R { R(when: act) }
+		static public func when(_ act: @escaping (Data) -> Bool) -> R {
+			R(_when: act)
+		}
 		/// 配置View, 每次使用之前都会调用这个
-		static public func config(_ act: @escaping (View, DataType) -> Void) -> R { R(config: act) }
-		/// 当首次创建了这个 View 就会调用
-		static public func created(_ act: @escaping (View) -> Void) -> R { R(created: act) }
+		static public func config(_ act: @escaping (DataWithView) -> Void) -> R {
+			R(_config: act)
+		}
 		/// 当点击了这个 View 就会调用
-		static public func tap(_ act: @escaping (View, DataType) -> Void) -> R { R(tap: act) }
+		static public func tap(_ act: @escaping (DataWithView) -> Void) -> R {
+			R(_tap: act)
+		}
 		/// 给这个 View 一个默认尺寸
-		static public func size(_ act: @escaping (UICollectionView) -> CGSize) -> R { R(size: act) }
+		static public func size(_ act: @escaping (Data) -> CGSize) -> R {
+			R(_size: act)
+		}
+		
+		/// 配置View, 每次使用之前都会调用这个
+		static public func willDisplay(_ act: @escaping (DataWithView) -> Void) -> R {
+			R(_willDisplay: act)
+		}
+		
+		/// 配置View, 每次使用之前都会调用这个
+		static public func didEndDisplay(_ act: @escaping (DataWithView) -> Void) -> R {
+			R(_endDisplay: act)
+		}
 		
 		@inline(__always)
 		mutating func bind(from r: R) {
 			if let act = r._view { _view = act }
 			if let act = r._when { _when = act }
 			if let act = r._config { _config = act }
-			if let act = r._created { _created = act }
 			if let act = r._tap { _tap = act }
 			if let act = r._size { _size = act }
+			if let act = r._willDisplay { _willDisplay = act }
+			if let act = r._endDisplay { _endDisplay = act }
 		}
 	}
 }
@@ -301,23 +376,19 @@ extension CollectionView {
 		if let cell = cell as? CollectionViewCell {
 			if cell.createSubview == nil {
 				cell.createSubview = registerd.view
-				if let view = cell.subview {
-					registerd.created(view)
-				}
 			}
 			if let view = cell.subview {
 				let element = _dataManager.element(for: indexPath)
 				// 这个不能放到willDisplay里去调, 不然如果是自适应尺寸的cell会出错
-				registerd.config(view, element)
+				registerd.config(.init(collectionView: self, view: view, data: element, indexPath: indexPath))
 			}
 		} else { // 注册的 View 是 UICollectionViewCell
 			if cell.isFirstTimeDequeued {
-				registerd.created(cell)
 				cell.isFirstTimeDequeued = false
 			}
 			let element = _dataManager.element(for: indexPath)
 			// 这个不能放到willDisplay里去调, 不然如果是自适应尺寸的cell会出错
-			registerd.config(cell, element)
+			registerd.config(.init(collectionView: self, view: cell, data: element, indexPath: indexPath))
 		}
 		return cell
 	}
@@ -328,7 +399,7 @@ extension CollectionView {
 		func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
 			guard let collection = collection else { return .zero }
 			if let registerd = collection.registeredView(for: indexPath, item: nil),
-				let size = registerd.size(collectionView) {
+			   let size = registerd.size(.init(collectionView: collection, data: collection._dataManager.element(for: indexPath), indexPath: indexPath)) {
 				return size
 			} else if let delegates = (collection.collectionDelegate.customDelegates.allObjects as? [UICollectionViewDelegateFlowLayout]) {
 				for delegate in delegates {
@@ -362,7 +433,7 @@ extension CollectionView {
 			let call = {
 				let element = collection._dataManager.element(for: indexPath)
 				guard
-					!registerd.tap(view, element), // 处理自定义的tap, 如果成功则取消后续操作
+					!registerd.tap(.init(collectionView: collection, view: view, data: element, indexPath: indexPath)), // 处理自定义的tap, 如果成功则取消后续操作
 					let delegates = collection.collectionDelegate.customDelegates.allObjects as? [UICollectionViewDelegate]
 					else { return }
 				for delegate in delegates {

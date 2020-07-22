@@ -22,15 +22,17 @@ public class _CollectionViewReloadHandler {
 		if !needReload {
 			needReload = true
 			DispatchQueue.main.async {
-				guard self.needReload else { return }
 				self.forceReload()
 			}
 		}
 		return self
 	}
 	internal func forceReload() {
+		defer {
+			completion = nil
+		}
+		guard needReload else { return }
 		_reload(animatingDifferences, completion)
-		completion = nil
 		needReload = false
 	}
 	internal func cancelReload() {

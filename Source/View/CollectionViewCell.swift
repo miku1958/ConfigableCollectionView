@@ -10,7 +10,7 @@ import UIKit
 
 class CollectionViewCell: UICollectionViewCell {
 	var subview: UIView?
-	var createSubview: (() -> UIView)? {
+	var createSubview: (() -> UIView?)? {
 		didSet {
 			subview?.removeFromSuperview()
 			if let view = createSubview?() {

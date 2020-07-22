@@ -26,6 +26,7 @@
 		FFB927A224B5C3CB0071D3AB /* DataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFB927A124B5C3CB0071D3AB /* DataManager.swift */; };
 		FFD1106E24BADBD2003EEAEF /* DataSourceBase.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFD1106D24BADBD2003EEAEF /* DataSourceBase.swift */; };
 		FFD1107224BAEE46003EEAEF /* ReloadHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFD1107124BAEE46003EEAEF /* ReloadHandler.swift */; };
+		FFF47F1D24C834C500C67BFA /* ViewBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFF47F1C24C834C500C67BFA /* ViewBuilder.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -72,6 +73,7 @@
 		FFD1106D24BADBD2003EEAEF /* DataSourceBase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataSourceBase.swift; sourceTree = "<group>"; };
 		FFD1107124BAEE46003EEAEF /* ReloadHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReloadHandler.swift; sourceTree = "<group>"; };
 		FFD1107324BAF5A3003EEAEF /* DataSourceDiff13.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataSourceDiff13.swift; sourceTree = "<group>"; };
+		FFF47F1C24C834C500C67BFA /* ViewBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewBuilder.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -234,6 +236,7 @@
 			isa = PBXGroup;
 			children = (
 				54B6E76503018CBFCEBF4DE2CFEFE3A3 /* CollectionView.swift */,
+				FFF47F1C24C834C500C67BFA /* ViewBuilder.swift */,
 				FFD1107124BAEE46003EEAEF /* ReloadHandler.swift */,
 				B842A86D083B00199C903BEDE4B841B2 /* CollectionViewCell.swift */,
 			);
@@ -356,6 +359,7 @@
 				CD87FAF0BE096BD99B4A986D51C2E01B /* CollectionViewCell.swift in Sources */,
 				71E7F38403C8C170CFA6288C66E15D87 /* CollectionViewDelegateProxy.m in Sources */,
 				FF64ABF424A9BC4400FEAE04 /* NSObject.swift in Sources */,
+				FFF47F1D24C834C500C67BFA /* ViewBuilder.swift in Sources */,
 				BBE35C01A1FA262B0AE41A9CF1976050 /* CollectionViewInvadeProtocol.swift in Sources */,
 				FF43ED4524C4876E00ED3EEA /* AnyHashable.swift in Sources */,
 				FFD1106E24BADBD2003EEAEF /* DataSourceBase.swift in Sources */,
