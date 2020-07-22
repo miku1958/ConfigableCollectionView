@@ -23,7 +23,7 @@ let collectionView = CollectionView(dataType: ClassData.self) // CollectionView<
 let collectionView = CollectionView(datasType: ClassData.self) // CollectionView<[ClassData], ClassData, Void>
 ```
 
-####use for multi type model, support multi section too
+#### use for multi type model, support multi section too
 
 ```
 let collectionView = CollectionView() // CollectionView<Any, Any, Any>
@@ -52,7 +52,7 @@ collectionView.register(
     Router.push( ... )
   },
   .when { data in // Optional, deciding when to use this type of view if need, 
-  	data.subject == .math
+    data.subject == .math
   }
 )
 collectionView.register(
@@ -65,13 +65,13 @@ collectionView.register(
     ...
   },
   .when { data in // Optional, deciding when to use this type of view if need, 
-  	data.subject == .english
+    data.subject == .english
   }
 )
 ...
 ```
 
-####use for multi type model
+#### use for multi type model
 
 ```
 collectionView.register(
@@ -106,7 +106,7 @@ collectionView.register(
 collectionView.datas = datas // datas: [ClassData] or [[ClassData]] if multi sections suppor
 ```
 
-####use for multi type model
+#### use for multi type model
 
 ```
 collectionView.datas = datas // datas: [Any] or [[Any]]
