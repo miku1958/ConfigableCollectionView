@@ -85,8 +85,11 @@ extension CollectionView {
 		}
 	}
 	
-	class DataSourceBase<DataType>: NSObject, UICollectionViewDataSource {
-		var sections = [SectionData<DataType>]()
+    class DataSourceBase<DataType>: NSObject, UICollectionViewDataSource where DataType: Hashable {
+        var sections: [SectionData<DataType>] {
+            guard let dataManager = _collectionView?._dataManager as? DataManager<DataType> else { return [] }
+            return dataManager.sections
+        }
 		weak var _collectionView: CollectionView?
 		
 		init(collectionView: CollectionView) {

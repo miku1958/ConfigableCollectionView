@@ -97,9 +97,8 @@ extension CollectionView.DataManager {
 						$0.base
 					}), toSection: section.section)
 				}
-			} else if let dataSource = collectionView.dataSource as? CollectionView.DataSourceBase<DataType> {
-				dataSource.sections = dataManager.sections
 				dataManager.diffDataSource?.apply(snapshot, animatingDifferences: animatingDifferences, completion: completion.call)
+			} else {
 				UIView.animate(withDuration: 0, animations: {
 					collectionView.reloadData()
 				}, completion: { _ in
