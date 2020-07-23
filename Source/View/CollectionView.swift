@@ -183,7 +183,8 @@ extension CollectionView {
 		for build in builds {
 			registeredView.bind(from: build)
 		}
-		let reuseIdentifier = "\(DataType.self)-\(ViewType.self)"
+		
+		let reuseIdentifier = UUID().uuidString
 		registerViews[ObjectIdentifier(DataType.self), default: []].append(.init(registeredView, reuseIdentifier: reuseIdentifier))
 		if let type = ViewType.self as? UICollectionViewCell.Type {
 			register(type, forCellWithReuseIdentifier: reuseIdentifier)
