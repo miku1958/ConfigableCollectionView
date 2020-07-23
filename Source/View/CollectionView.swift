@@ -235,12 +235,13 @@ extension CollectionView {
 			self.view =  {
 				_view._view?() as? UIView
 			}
-			typealias Data = RegisteredView<View, DataType>.Data
-			typealias DataWithView = RegisteredView<View, DataType>.DataWithView
+			
+			let Data = RegisteredView<View, DataType>.DataFrom
+			let DataWithView = RegisteredView<View, DataType>.DataWithViewFrom
 			
 			if let when = _view._when {
 				self.when = { data in
-					guard let data = Data(data: data) else { return false }
+					guard let data = Data(data) else { return false }
 					return when(data)
 				}
 			} else {
@@ -248,13 +249,13 @@ extension CollectionView {
 			}
 			
 			self.config = { data in
-				if let data = DataWithView(data: data) {
+				if let data = DataWithView(data) {
 					_view._config?(data)
 				}
 			}
 			
 			self.tap = { data in
-				if let tap = _view._tap, let data = DataWithView(data: data) {
+				if let tap = _view._tap, let data = DataWithView(data) {
 					tap(data)
 					return true
 				}
@@ -262,20 +263,20 @@ extension CollectionView {
 			}
 			
 			self.size = { data in
-				if let size = _view._size, let data = Data(data: data) {
+				if let size = _view._size, let data = Data(data) {
 					return size(data)
 				}
 				return nil
 			}
 			
 			self.willDisplay = { data in
-				if let data = DataWithView(data: data) {
+				if let data = DataWithView(data) {
 					_view._willDisplay?(data)
 				}
 			}
 			
 			self.endDisplay = { data in
-				if let data = DataWithView(data: data) {
+				if let data = DataWithView(data) {
 					_view._endDisplay?(data)
 				}
 			}
@@ -283,36 +284,22 @@ extension CollectionView {
 	}
 	
 	public struct RegisteredView<ViewType, DataType> where ViewType: View {
-		public struct Data {
-			public let collectionView: CollectionView
-			public let data: DataType
-			public let indexPath: IndexPath
-			
-			init?(data from: _RegisteredView.Data) {
-				guard let data = from.data as? DataType else {
-					return nil
-				}
-				self.data = data
-				self.indexPath = from.indexPath
-				self.collectionView = from.collectionView
+		public typealias Data = (collectionView: CollectionView, data: DataType, indexPath: IndexPath)
+		public typealias DataWithView = (collectionView: CollectionView, view: ViewType, data: DataType, indexPath: IndexPath)
+		
+		static func DataFrom(_ from: _RegisteredView.Data) -> Data? {
+			guard let data = from.data as? DataType else {
+				return nil
 			}
+			return (from.collectionView, data, from.indexPath)
 		}
-		public struct DataWithView {
-			public let collectionView: CollectionView
-			public let view: ViewType
-			public let data: DataType
-			public let indexPath: IndexPath
-			
-			init?(data from: _RegisteredView.DataWithView) {
-				guard let view = from.view as? ViewType, let data = from.data as? DataType else {
-					return nil
-				}
-				self.view = view
-				self.data = data
-				self.indexPath = from.indexPath
-				self.collectionView = from.collectionView
+		static func DataWithViewFrom(_ from: _RegisteredView.DataWithView) -> DataWithView? {
+			guard let view = from.view as? ViewType, let data = from.data as? DataType else {
+				return nil
 			}
+			return (from.collectionView, view, data, from.indexPath)
 		}
+
 		public typealias R = RegisteredView<ViewType, DataType>
 		var _view: (() -> ViewType?)?
 		var _config: ((DataWithView) -> Void)?
