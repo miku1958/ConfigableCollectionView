@@ -135,7 +135,7 @@ extension CollectionView.DataManager {
 		if let item = item as? CollectionView.AnyHashable {
 			return item.base
 		} else {
-			return item as Any
+			return item!
 		}
 	}
 	@usableFromInline
