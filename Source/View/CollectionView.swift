@@ -426,10 +426,19 @@ extension CollectionView {
 			guard
 				let collection = collection,
 				let registerd = collection.registeredView(for: indexPath, item: nil),
-				let cell = collection.cellForItem(at: indexPath) as? CollectionViewCell,
-				let view = cell.subview
-				else {
+				let cell = collection.cellForItem(at: indexPath)
+			else {
+				return
+			}
+			let view: UIView
+			if let cell = cell as? CollectionViewCell {
+				if let subview = cell.subview {
+					view = subview
+				} else {
 					return
+				}
+			} else {
+				view = cell
 			}
 			
 			let call = {
@@ -442,7 +451,7 @@ extension CollectionView {
 					delegate.collectionView?(collectionView, didSelectItemAt: indexPath)
 				}
 			}
-			if let invade = CollectionViewDeletegateInvade, let view = cell.subview {
+			if let invade = CollectionViewDeletegateInvade {
 				invade.didselected(view: view, call: call)
 			} else {
 				call()
