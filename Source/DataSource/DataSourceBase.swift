@@ -95,7 +95,7 @@ extension CollectionView {
 				UIView.animate(withDuration: 0, animations: {
 					collectionView?.reloadData()
 				}, completion: { _ in
-					completion?()
+                    completion.call()
 				})
 			}
 		}

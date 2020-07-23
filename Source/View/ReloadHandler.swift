@@ -7,45 +7,51 @@
 
 import Foundation
 
-public class _CollectionViewReloadHandler {
+public class ReloadHandler {
 	@usableFromInline
 	init() { }
 	fileprivate var needReload = false
 	@usableFromInline
-	internal var _reload: (_ animatingDifferences: Bool, _ completion: (() -> Void)?) -> Void = { _, _ in }
+	internal var _reload: (_ animatingDifferences: Bool, _ completion: [() -> Void]) -> Void = { _, _ in }
 	
 	fileprivate var animatingDifferences = false
-	fileprivate var completion: (() -> Void)?
+	fileprivate var completion = [() -> Void]()
 	
 	@usableFromInline
-	internal func commit() -> _CollectionViewReloadHandler {
+	internal func commit() -> ReloadHandler {
 		if !needReload {
 			needReload = true
 			DispatchQueue.main.async {
-				self.forceReload()
+				self.reloadImmediately()
 			}
 		}
 		return self
 	}
-	internal func forceReload() {
+    
+    public func reloadImmediately() {
 		defer {
-			completion = nil
+			completion = []
 		}
 		guard needReload else { return }
 		_reload(animatingDifferences, completion)
 		needReload = false
 	}
-	internal func cancelReload() {
-		needReload = false
-	}
 	
 	@available(iOS 13.0, tvOS 13.0, *)
-	public func on(animatingDifferences: Bool, completion: (() -> Void)? = nil) {
+    @discardableResult
+	public func on(animatingDifferences: Bool, completion: (() -> Void)? = nil) -> ReloadHandler {
 		self.animatingDifferences = animatingDifferences
-		self.completion = completion
+        if let completion = completion {
+            self.completion.append(completion)
+        }
+        return self
 	}
 	
-	public func on(completion: (() -> Void)? = nil) {
-		self.completion = completion
+    @discardableResult
+	public func on(completion: (() -> Void)? = nil) -> ReloadHandler {
+        if let completion = completion {
+            self.completion.append(completion)
+        }
+        return self
 	}
 }

@@ -12,7 +12,7 @@ public var CollectionViewDeletegateInvade: CollectionViewInvadeProtocol.Type?
 public class CollectionView<DataType, VerifyType>: UICollectionView {
 	var _dataManager: CollectionViewDataManager!
 	@usableFromInline
-	var reloadHandlers = [_CollectionViewReloadHandler()]
+	var reloadHandlers = [ReloadHandler()]
 	/// [dataType: registerd]
 	var registerViews = [ObjectIdentifier: [_RegisteredView]]()
 	var cachingViews = [String: UIView]()
@@ -120,10 +120,10 @@ public class CollectionView<DataType, VerifyType>: UICollectionView {
 
 extension CollectionView {
 	@inline(__always)
-	@usableFromInline
-	func forceReload() {
+	@inlinable
+	public func reloadImmediately() {
 		for handler in reloadHandlers {
-			handler.forceReload()
+			handler.reloadImmediately()
 		}
 	}
 }

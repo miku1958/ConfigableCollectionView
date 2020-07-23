@@ -17,3 +17,12 @@ extension Array where Element: Hashable {
 		return (array, set)
 	}
 }
+
+extension Array where Element == () -> Void {
+    @usableFromInline
+    func call() {
+        for call in self {
+            call()
+        }
+    }
+}
