@@ -803,11 +803,18 @@ extension CollectionView.DataManager where VerifyType == Void {
 	@available(iOS 14.0, tvOS 14.0, *)
 	@inlinable
 	@discardableResult
-	public func append(childItems: [DataType], to parent: DataType) -> _CollectionViewReloadHandler {
+	public func append(childItems: [DataType], to parent: DataType?) -> _CollectionViewReloadHandler {
 		
 		let itemsUnique = childItems.unique()
 		filterAddingItem(set: itemsUnique.set)
-		
+		guard let parent = parent else {
+			if !sections.isEmpty {
+				sections[sections.count-1].items.append(contentsOf: itemsUnique.array.map {
+					.init($0)
+				})
+			}
+			return reloadHandler.commit()
+		}
 		useDiffDataSource = true
 		func find(item: CollectionView.ItemData<DataType>) -> CollectionView.ItemData<DataType>? {
 			if item.base == parent {
