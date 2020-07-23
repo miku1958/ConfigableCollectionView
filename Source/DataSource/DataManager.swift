@@ -68,7 +68,6 @@ extension CollectionView.DataManager {
 			}
 			
 			let dataManager = collectionView._dataManager as! Self
-			dataManager.prepareReload()
 			
 			if #available(iOS 14.0, *), dataManager.useDiffDataSource {
 				var completion = completion
@@ -141,9 +140,9 @@ extension CollectionView.DataManager {
 	}
 	@usableFromInline
 	@inline(__always)
-	func prepareReload() {
+	func prepareDatasource() -> UICollectionViewDataSource? {
 		guard let collectionView = collectionView else {
-			return
+			return nil
 		}
 		if #available(iOS 13.0, *) {
 			if _diffDataSource == nil {
@@ -158,12 +157,11 @@ extension CollectionView.DataManager {
 					}
 				}
 				diffDataSource = .init(collectionView: collectionView, cellProvider: cellProvider)
-				
-				collectionView.dataSource = diffDataSource
 			}
-		} else if collectionView.dataSource == nil {
+			return diffDataSource
+		} else {
 			let dataSource = CollectionView.DataSourceBase<DataType>(collectionView: collectionView)
-			collectionView.dataSource = dataSource
+			return dataSource
 		}
 	}
 }
@@ -843,7 +841,7 @@ extension CollectionView.DataManager where VerifyType == Void {
 	@inlinable
 	@discardableResult
 	public func expand(parents: [DataType]) -> _CollectionViewReloadHandler {
-		prepareReload()
+		
 		guard let diff = diffDataSource else { return reloadHandler }
 		collectionView?.forceReload()
 		let reload = _CollectionViewReloadHandler()
@@ -869,7 +867,7 @@ extension CollectionView.DataManager where VerifyType == Void {
 	@inlinable
 	@discardableResult
 	public func collapse(parents: [DataType]) -> _CollectionViewReloadHandler {
-		prepareReload()
+		
 		guard let diff = diffDataSource else { return reloadHandler }
 		collectionView?.forceReload()
 		let reload = _CollectionViewReloadHandler()
@@ -913,7 +911,7 @@ extension CollectionView.DataManager where VerifyType == Void {
 	@available(iOS 14.0, tvOS 14.0, *)
 	@inlinable
 	public func parent(of child: DataType) -> DataType? {
-		prepareReload()
+		
 		guard let diff = diffDataSource else { return nil }
 		collectionView?.forceReload()
 		for section in sections {
@@ -1422,7 +1420,7 @@ extension CollectionView.DataManager where DataType == CollectionView.AnyHashabl
 	@inlinable
 	@discardableResult
 	public func expand<ParentType>(parents: [ParentType]) -> _CollectionViewReloadHandler where ParentType: Hashable {
-		prepareReload()
+		
 		guard let diff = diffDataSource else { return reloadHandler }
 		collectionView?.forceReload()
 		let reload = _CollectionViewReloadHandler()
@@ -1449,7 +1447,7 @@ extension CollectionView.DataManager where DataType == CollectionView.AnyHashabl
 	@inlinable
 	@discardableResult
 	public func collapse<ParentType>(parents: [ParentType]) -> _CollectionViewReloadHandler where ParentType: Hashable {
-		prepareReload()
+		
 		guard let diff = diffDataSource else { return reloadHandler }
 		collectionView?.forceReload()
 		let reload = _CollectionViewReloadHandler()

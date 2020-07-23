@@ -18,11 +18,9 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nullable, nonatomic, weak) UICollectionView *collection;
 
 @property (nullable, nonatomic, strong) id mainDelegate;
-@property (nonatomic, readonly) NSHashTable<UICollectionViewDelegate> *customDelegates;
-@property (nonatomic, readonly) NSHashTable<UICollectionViewDataSource> *customDatasources;
+@property (nonatomic, readonly) NSHashTable*customDelegates;
 
-- (void)addDelegates:(id<UICollectionViewDelegate> __nullable)delegate;
-- (void)addDatasources:(id<UICollectionViewDataSource> __nullable)dataSource;
+- (void)addDelegates:(id __nullable)delegate;
 @end
 
 NS_ASSUME_NONNULL_END

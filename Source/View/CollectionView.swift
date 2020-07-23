@@ -18,7 +18,8 @@ public class CollectionView<DataType, VerifyType>: UICollectionView {
 	var cachingViews = [String: UIView]()
 	
 	// swiftlint:disable weak_delegate
-	lazy var collectionDelegate = CollectionViewDelegateProxy(collection: self)
+	var collectionDelegate: CollectionViewDelegateProxy!
+	var collectionDatasource: UICollectionViewDataSource?
 	var mainDelegate: Delegate {
 		collectionDelegate.mainDelegate as! Delegate
 	}
@@ -26,8 +27,7 @@ public class CollectionView<DataType, VerifyType>: UICollectionView {
 // MARK: - override
 	public override weak var dataSource: UICollectionViewDataSource? {
 		didSet {
-			self.collectionDelegate.addDatasources(dataSource)
-			super.dataSource = collectionDelegate
+			super.dataSource = collectionDatasource
 		}
 	}
 	public override weak var delegate: UICollectionViewDelegate? {
@@ -50,15 +50,20 @@ public class CollectionView<DataType, VerifyType>: UICollectionView {
 		super.delegate = newDelegate
 	}
 	
-	override init(frame: CGRect, collectionViewLayout layout: UICollectionViewLayout) {
+	required init<DataManagerType>(frame: CGRect, collectionViewLayout layout: UICollectionViewLayout, dataManagerInit: (CollectionView) -> DataManager<DataManagerType>) {
 		super.init(frame: frame, collectionViewLayout: layout)
 		
+		let dataManager = dataManagerInit(self)
 		let delegate = Delegate()
 		delegate.collection = self
 		
+		collectionDelegate =  CollectionViewDelegateProxy(collection: self)
+		collectionDatasource = dataManager.prepareDatasource()
+		_dataManager = dataManager
+		
 		collectionDelegate.mainDelegate = delegate
 		
-		super.dataSource = collectionDelegate
+		super.dataSource = collectionDatasource
 		super.delegate = collectionDelegate
 		
 		backgroundColor = .clear
@@ -126,10 +131,9 @@ extension CollectionView {
 // MARK: - initialize
 extension CollectionView where VerifyType == Any, DataType == Any {
 	public convenience init(layout: UICollectionViewLayout) {
-		self.init(frame: .zero, collectionViewLayout: layout)
-		let dataManager = DataManager<AnyHashable>(collectionView: self)
-		self._dataManager = dataManager
-		dataManager.prepareReload()
+		self.init(frame: .zero, collectionViewLayout: layout, dataManagerInit: {
+			DataManager<AnyHashable>(collectionView: $0)
+		})
 	}
 	
 	@inline(__always)
@@ -140,11 +144,9 @@ extension CollectionView where VerifyType == Any, DataType == Any {
 
 extension CollectionView where VerifyType == Void, DataType: Hashable {
 	public convenience init(layout: UICollectionViewLayout, dataType: DataType.Type) {
-		self.init(frame: .zero, collectionViewLayout: layout)
-		
-		let dataManager = DataManager<DataType>(collectionView: self)
-		self._dataManager = dataManager
-		dataManager.prepareReload()
+		self.init(frame: .zero, collectionViewLayout: layout, dataManagerInit: {
+			DataManager<DataType>(collectionView: $0)
+		})
 	}
 	@inline(__always)
 	public var dataManager: DataManager<DataType> {

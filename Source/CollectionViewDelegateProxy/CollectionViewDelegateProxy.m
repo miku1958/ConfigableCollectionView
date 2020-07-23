@@ -53,23 +53,23 @@ static NSArray<NSSEL *> *allDataSourceMethod;
 @property (nonatomic, strong) NSMutableDictionary<NSSEL *, NSHashTable *> *methodsMap;
 @property (nonatomic, strong) NSDictionary<NSSEL *, ShouldRespond> *respondChecker;
 
-@property (nonatomic, strong) NSHashTable<UICollectionViewDelegate> *customDelegates;
-@property (nonatomic, strong) NSHashTable<UICollectionViewDataSource> *customDatasources;
+@property (nonatomic, strong) NSHashTable *customDelegates;
+@property (nonatomic, strong) NSArray<NSSEL *> *allMethods;
 @end
 
 @implementation CollectionViewDelegateProxy
+
 - (instancetype)initWithCollection:(UICollectionView *)collection {
-	_collection = collection;
-	_methodsMap = [NSMutableDictionary dictionary];
-	_customDatasources = (id)[NSHashTable weakObjectsHashTable];
-	_customDelegates = (id)[NSHashTable weakObjectsHashTable];
 	[self initChecker];
 	[self initMethods];
+	_allMethods = allDelegateMethod;
+	_collection = collection;
+	_methodsMap = [NSMutableDictionary dictionary];
+	_customDelegates = (id)[NSHashTable weakObjectsHashTable];
 	return self;
 }
 - (instancetype)initWithProxy:(CollectionViewDelegateProxy *)proxy {
 	_customDelegates = proxy.customDelegates;
-	_customDatasources = proxy.customDatasources;
 	_methodsMap = proxy.methodsMap;
 	_mainDelegate = proxy.mainDelegate;
 	_collection = proxy.collection;
@@ -138,11 +138,7 @@ static NSArray<NSSEL *> *allDataSourceMethod;
 - (void)setMainDelegate:(id)mainDelegate {
 	_mainDelegate = mainDelegate;
 	
-	for (NSSEL *sel in allDelegateMethod) {
-		[self setObj: mainDelegate forSEL: sel filterMainDelegate: false];
-	}
-	
-	for (NSSEL *sel in allDataSourceMethod) {
+	for (NSSEL *sel in _allMethods) {
 		[self setObj: mainDelegate forSEL: sel filterMainDelegate: false];
 	}
 }
@@ -152,29 +148,17 @@ static NSArray<NSSEL *> *allDataSourceMethod;
 		return;
 	}
 	[_customDelegates addObject: delegate];
-	for (NSSEL *sel in allDelegateMethod) {
+	for (NSSEL *sel in _allMethods) {
 		[self setObj: delegate forSEL: sel filterMainDelegate: true];
 	}
 }
-- (void)addDatasources:(id<UICollectionViewDataSource>)dataSource {
-	if (dataSource == nil) {
-		return;
-	}
-	[_customDatasources addObject: dataSource];
-	for (NSSEL *sel in allDataSourceMethod) {
-		[self setObj: dataSource forSEL: sel filterMainDelegate: true];
-	}
-}
+
 @end
 
 @implementation CollectionViewDelegateProxy(proxy)
 - (void)findResponderForSEL:(NSSEL *)sel {
 	[self setObj: _mainDelegate forSEL: sel filterMainDelegate: false];
-	for (id obj in _customDelegates) {
-		[self setObj: obj forSEL: sel filterMainDelegate: false];
-	}
-	
-	for (id obj in _customDatasources) {
+	for (id obj in _allMethods) {
 		[self setObj: obj forSEL: sel filterMainDelegate: false];
 	}
 }
@@ -211,12 +195,14 @@ static NSArray<NSSEL *> *allDataSourceMethod;
 			return;
 		}
 		if (_methodsMap[method].count == 0) {
-			if (![allDataSourceMethod containsObject: method] && ![allDelegateMethod containsObject: method]) {
-				[self findResponderForSEL: method];
-			}
+			[self findResponderForSEL: method];
 		}
 		NSHashTable * objs = _methodsMap[method];
-		[invocation invokeWithTarget: objs.anyObject];
+		if ([objs containsObject: _mainDelegate]) {
+			[invocation invokeWithTarget: _mainDelegate];
+		} else {
+			[invocation invokeWithTarget: objs.anyObject];
+		}
 		return;
 	}
 	NSSEL *method = [NSSEL selWith: sel];
