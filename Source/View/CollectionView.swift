@@ -183,7 +183,7 @@ extension CollectionView {
 		for build in builds {
 			registeredView.bind(from: build)
 		}
-		let reuseIdentifier = "\(DataType.self)-\(View.self)"
+		let reuseIdentifier = "\(DataType.self)-\(ViewType.self)"
 		registerViews[ObjectIdentifier(DataType.self), default: []].append(.init(registeredView, reuseIdentifier: reuseIdentifier))
 		if let type = ViewType.self as? UICollectionViewCell.Type {
 			register(type, forCellWithReuseIdentifier: reuseIdentifier)
@@ -200,7 +200,7 @@ extension CollectionView {
 		}
 		guard let registerViews = registerViews[ObjectIdentifier(type(of: item))] else { return nil }
 		return registerViews.first {
-			$0.when?(.init(collectionView: self, data: $0, indexPath: indexPath)) ?? false
+			$0.when?(.init(collectionView: self, data: item, indexPath: indexPath)) ?? false
 		} ?? registerViews.first(where: {
 			$0.when == nil
 		})
