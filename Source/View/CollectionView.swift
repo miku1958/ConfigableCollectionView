@@ -32,14 +32,15 @@ public class CollectionView<DataType, VerifyType>: UICollectionView {
 	}
 	public override weak var delegate: UICollectionViewDelegate? {
 		// 这里没法直接重写 set/get, 不然在 touchesEnd 里不会回调 delegate 的 didSelected 方法
-		willSet {
+		didSet {
 			// 防止有些第三方(比如 RxCocoa) 内部在设置完 delegate 后会进行 assert 判断有没有被修改, 所以这里先把原来的异步修改回自定义的 delegate, 并且把原来的 collectionDelegate 释放, 不然会死循环
-			if newValue?.isEqual(collectionDelegate) ?? false {
+			guard let delegate = delegate else { return }
+			if delegate.isEqual(collectionDelegate) {
 				return
 			}
 			DispatchQueue.main.async {
 				self.resetANewDelegateProxy()
-				self.collectionDelegate.addDelegates(newValue)
+				self.collectionDelegate.addDelegates(delegate)
 			}
 		}
 	}
