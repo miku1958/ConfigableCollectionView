@@ -161,16 +161,10 @@ public extension CollectionView where VerifyType == Any {
 	func register<View, DataType>(dataType: DataType.Type, @ViewBuilder view: @escaping () -> View?, _ builds: RegisteredView<View, DataType>...) {
 		register(view: view, builds)
 	}
-	func register<View, DataType>(dataType: DataType.Type, view: @escaping @autoclosure () -> View?, _ builds: RegisteredView<View, DataType>...) {
-		register(view: view, builds)
-	}
 }
 public extension CollectionView where VerifyType == Void {
 	/// 使用多个RegisteredView注册Cell
 	func register<ViewType>(@ViewBuilder view: @escaping () -> ViewType?, _ builds: RegisteredView<ViewType, DataType>...) where ViewType: View {
-		register(view: view, builds)
-	}
-	func register<ViewType>(view: @escaping @autoclosure () -> ViewType?, _ builds: RegisteredView<ViewType, DataType>...) where ViewType: View {
 		register(view: view, builds)
 	}
 }
@@ -286,7 +280,7 @@ extension CollectionView {
 	
 	public struct RegisteredView<ViewType, DataType> where ViewType: View {
 		public typealias Data = (collectionView: CollectionView, data: DataType, indexPath: IndexPath)
-		public typealias DataWithView = (collectionView: CollectionView, view: ViewType, data: DataType, indexPath: IndexPath)
+		public typealias DataWithView<DataType> = (collectionView: CollectionView, view: ViewType, data: DataType, indexPath: IndexPath)
 		
 		static func DataFrom(_ from: _RegisteredView.Data) -> Data? {
 			guard let data = from.data as? DataType else {
@@ -294,7 +288,7 @@ extension CollectionView {
 			}
 			return (from.collectionView, data, from.indexPath)
 		}
-		static func DataWithViewFrom(_ from: _RegisteredView.DataWithView) -> DataWithView? {
+		static func DataWithViewFrom(_ from: _RegisteredView.DataWithView) -> DataWithView<DataType>? {
 			guard let view = from.view as? ViewType, let data = from.data as? DataType else {
 				return nil
 			}
@@ -303,26 +297,39 @@ extension CollectionView {
 
 		public typealias R = RegisteredView<ViewType, DataType>
 		var _view: (() -> ViewType?)?
-		var _config: ((DataWithView) -> Void)?
+		var _config: ((DataWithView<DataType>) -> Void)?
 		var _when: ((Data) -> Bool)?
 		
-		var _tap: ((DataWithView) -> Void)?
+		var _tap: ((DataWithView<DataType>) -> Void)?
 		
 		var _size: ((Data) -> CGSize)?
 		
-		var _willDisplay: ((DataWithView) -> Void)?
-		var _endDisplay: ((DataWithView) -> Void)?
+		var _willDisplay: ((DataWithView<DataType>) -> Void)?
+		var _endDisplay: ((DataWithView<DataType>) -> Void)?
 		
 		/// 决定什么时候需要分配这个 View
 		static public func when(_ act: @escaping (Data) -> Bool) -> R {
 			R(_when: act)
 		}
 		/// 配置View, 每次使用之前都会调用这个
-		static public func config(_ act: @escaping (DataWithView) -> Void) -> R {
+		static public func config<Mapped>(map transform: @escaping (DataType) throws -> Mapped,_ act: @escaping (DataWithView<Mapped>) -> Void) -> R {
+			R(_config: { collectionView, view, data, indexPath in
+				guard let data = try? transform(data) else { return }
+				act((collectionView, view, data, indexPath))
+			})
+		}
+		/// 配置View, 每次使用之前都会调用这个
+		static public func config<Mapped>(map transform: @escaping (DataType) throws -> Mapped?,_ act: @escaping (DataWithView<Mapped>) -> Void) -> R {
+			R(_config: { collectionView, view, data, indexPath in
+				guard let data = try? transform(data) else { return }
+				act((collectionView, view, data, indexPath))
+			})
+		}
+		static public func config(_ act: @escaping (DataWithView<DataType>) -> Void) -> R {
 			R(_config: act)
 		}
 		/// 当点击了这个 View 就会调用
-		static public func tap(_ act: @escaping (DataWithView) -> Void) -> R {
+		static public func tap(_ act: @escaping (DataWithView<DataType>) -> Void) -> R {
 			R(_tap: act)
 		}
 		/// 给这个 View 一个默认尺寸
@@ -331,12 +338,12 @@ extension CollectionView {
 		}
 		
 		/// 配置View, 每次使用之前都会调用这个
-		static public func willDisplay(_ act: @escaping (DataWithView) -> Void) -> R {
+		static public func willDisplay(_ act: @escaping (DataWithView<DataType>) -> Void) -> R {
 			R(_willDisplay: act)
 		}
 		
 		/// 配置View, 每次使用之前都会调用这个
-		static public func didEndDisplay(_ act: @escaping (DataWithView) -> Void) -> R {
+		static public func didEndDisplay(_ act: @escaping (DataWithView<DataType>) -> Void) -> R {
 			R(_endDisplay: act)
 		}
 		
