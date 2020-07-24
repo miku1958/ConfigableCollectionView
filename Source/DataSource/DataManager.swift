@@ -24,6 +24,9 @@ import UIKit
 // snapshot(for section: SectionIdentifierType) 找不到会返回一个空的 NSDiffableDataSourceSectionSnapshot
 // ☑️TODO:    使用diffDataSource前得强刷新, 有些情况得强行prepare
 // ☑️TODO:    @inline(__always)改成@inlinable, 把不能inline的东西加上@usableFromInline
+
+// apply是覆盖, 当提供的sectionIdentifier找不到时则添加到末尾, 除此之外会覆盖所有数据
+// append是添加, 所以需要sectionIdentifier
 protocol CollectionViewDataManager {
 	var lastIndexPath: IndexPath? { get }
 	func element(for indexPath: IndexPath) -> Any
@@ -471,22 +474,32 @@ extension CollectionView.DataManager where VerifyType == Void {
 		sections = [.init(sectionIdentifier: 0, items: datas)]
 		return reloadHandler.commit()
 	}
+    
+    @inlinable
+    @discardableResult
+    public func apply(_ sections: [[DataType]]) -> ReloadHandler {
+        self.sections = sections.enumerated().map {
+            .init(sectionIdentifier: $0.offset, items: $0.element)
+        }
+        return reloadHandler.commit()
+    }
+    
 	@inlinable
 	@discardableResult
-	public func apply<SectionIdentifierType>(_ datas: [DataType], toSection sectionIdentifier: SectionIdentifierType) -> ReloadHandler where SectionIdentifierType: Hashable {
-		sections = [.init(sectionIdentifier: sectionIdentifier, items: datas)]
+	public func apply<SectionIdentifierType>(_ datas: [DataType], replaceOrAppend sectionIdentifier: SectionIdentifierType) -> ReloadHandler where SectionIdentifierType: Hashable {
+        if let index = sections.firstIndex(where: {
+            $0.section == sectionIdentifier
+        }) {
+            sections[index].items = datas.map {
+                .init($0)
+            }
+        } else {
+            sections.append(.init(sectionIdentifier: sectionIdentifier, items: datas))
+        }
+        
 		return reloadHandler.commit()
 	}
 
-	@inlinable
-	@discardableResult
-	public func apply(_ sections: [[DataType]]) -> ReloadHandler {
-		self.sections = sections.enumerated().map {
-			.init(sectionIdentifier: $0.offset, items: $0.element)
-		}
-		return reloadHandler.commit()
-	}
-	
 	@inlinable
 	public func itemIdentifier(for indexPath: IndexPath) -> DataType? {
 		element(for: indexPath) as? DataType
@@ -518,7 +531,7 @@ extension CollectionView.DataManager where VerifyType == Void {
 	// 'NSInternalInconsistencyException', reason: 'Invalid parameter not satisfying: section != NSNotFound'
 	@inlinable
 	@discardableResult
-	public func append<SectionIdentifierType>(items: [DataType], toSection sectionIdentifier: SectionIdentifierType) -> ReloadHandler where SectionIdentifierType: Hashable {
+	public func append<SectionIdentifierType>(_ items: [DataType], toSection sectionIdentifier: SectionIdentifierType) -> ReloadHandler where SectionIdentifierType: Hashable {
 		guard !sections.isEmpty else {
 			assertionFailure("There are currently no sections in the data source. Please add a section first.")
 			return reloadHandler
@@ -1061,27 +1074,34 @@ extension CollectionView.DataManager where DataType == CollectionView.AnyHashabl
 		})]
 		return reloadHandler.commit()
 	}
+    @inlinable
+    @discardableResult
+    public func apply<ItemIdentifierType>(_ sections: [[ItemIdentifierType]]) -> ReloadHandler where ItemIdentifierType: Hashable {
+        self.sections = sections.enumerated().map {
+            .init(sectionIdentifier: $0.offset, items: $0.element.map{
+                .init($0)
+            })
+        }
+        
+        return reloadHandler.commit()
+    }
 	@inlinable
 	@discardableResult
-	public func apply<ItemIdentifierType, SectionIdentifierType>(_ datas: [ItemIdentifierType], toSection sectionIdentifier: SectionIdentifierType) -> ReloadHandler where ItemIdentifierType: Hashable, SectionIdentifierType: Hashable {
-		sections = [.init(sectionIdentifier: sectionIdentifier, items: datas.map{
-			.init($0)
-		})]
-		
+	public func apply<ItemIdentifierType, SectionIdentifierType>(_ datas: [ItemIdentifierType], replaceOrAppend sectionIdentifier: SectionIdentifierType) -> ReloadHandler where ItemIdentifierType: Hashable, SectionIdentifierType: Hashable {
+        if let index = sections.firstIndex(where: {
+            $0.section == sectionIdentifier
+        }) {
+            sections[index].items = datas.map {
+                .init(.init($0))
+            }
+        } else {
+            sections.append(.init(sectionIdentifier: sectionIdentifier, items: datas.map{
+                .init($0)
+            }))
+        }
 		return reloadHandler.commit()
 	}
 
-	@inlinable
-	@discardableResult
-	public func apply<ItemIdentifierType>(_ sections: [[ItemIdentifierType]]) -> ReloadHandler where ItemIdentifierType: Hashable {
-		self.sections = sections.enumerated().map {
-			.init(sectionIdentifier: $0.offset, items: $0.element.map{
-				.init($0)
-			})
-		}
-		
-		return reloadHandler.commit()
-	}
 	@inlinable
 	public func itemIdentifier<ItemIdentifierType>(for indexPath: IndexPath) -> ItemIdentifierType? where ItemIdentifierType : Hashable {
 		element(for: indexPath) as? ItemIdentifierType
