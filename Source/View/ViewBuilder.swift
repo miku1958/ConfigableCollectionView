@@ -7,18 +7,18 @@
 
 import Foundation
 
-public protocol View { }
+public protocol ViewProtocol { }
 
-extension UIView: View { }
-extension Optional: View { }
+extension UIView: ViewProtocol { }
+extension Optional: ViewProtocol { }
 
 @_functionBuilder
 public struct ViewBuilder {
-	public static func buildBlock<Content>(_ content: Content) -> Content where Content: View {
+	public static func buildBlock<Content>(_ content: Content) -> Content where Content: ViewProtocol {
 		content
 	}
 	
-	public static func buildIf<Content>(_ content: Content?) -> Content? where Content: View {
+	public static func buildIf<Content>(_ content: Content?) -> Content? where Content: ViewProtocol {
 		content
 	}
 }

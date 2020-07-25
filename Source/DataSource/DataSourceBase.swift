@@ -9,16 +9,16 @@ import UIKit
 
 extension CollectionView {
 	@usableFromInline
-	struct SectionData<ItemType> {
+	struct SectionData<ItemIdentifier> {
 		@usableFromInline
 		let anySection: AnyHashable
 		
 		@inline(__always)
 		@usableFromInline
-		func section<SectionType>() -> SectionType {
-			if let section = anySection as? SectionType {
+		func section<Section>() -> Section {
+			if let section = anySection as? Section {
 				return section
-			} else if let section = anySection.base as? SectionType {
+			} else if let section = anySection.base as? Section {
 				return section
 			} else {
 				fatalError("wtf are you doing")
@@ -26,13 +26,13 @@ extension CollectionView {
 		}
 		@inline(__always)
 		@usableFromInline
-		func trySection<SectionType>() -> SectionType? {
-			anySection.base as? SectionType
+		func trySection<Section>() -> Section? {
+			anySection.base as? Section
 		}
 		@usableFromInline
-		var items: [ItemData<ItemType>]
+		var items: [ItemData<ItemIdentifier>]
 		@usableFromInline
-		init<SectionIdentifierType>(sectionIdentifier: SectionIdentifierType, items: [ItemType] = []) where SectionIdentifierType: Hashable {
+		init<Section>(sectionIdentifier: Section, items: [ItemIdentifier] = []) where Section: Hashable {
 			self.anySection = .package(sectionIdentifier)
 			self.items = items.map({
 				ItemData($0)
@@ -45,17 +45,17 @@ extension CollectionView {
 		}
 	}
 	@usableFromInline
-	class ItemData<BaseType> {
+	class ItemData<ItemIdentifier> {
 		@usableFromInline
-		let base: BaseType
+		let base: ItemIdentifier
 		@usableFromInline
-		init(_ base: BaseType) {
+		init(_ base: ItemIdentifier) {
 			self.base = base
 		}
 		@usableFromInline
 		var subItems: [ItemData] = []
 		@usableFromInline
-		var allItems: [BaseType] {
+		var allItems: [ItemIdentifier] {
 			var result = [base]
 			for sub in subItems {
 				result.append(contentsOf: sub.allItems)
@@ -63,12 +63,12 @@ extension CollectionView {
 			return result
 		}
 		@usableFromInline
-		func contains<ItemIdentifierType>(_ value: ItemIdentifierType) -> Bool where ItemIdentifierType: Hashable {
+		func contains<Item>(_ value: Item) -> Bool where Item: Hashable {
 			if let base = base as? AnyHashable {
 				if base == value {
 					return true
 				}
-			} else if (base as? ItemIdentifierType) == value {
+			} else if (base as? Item) == value {
 				return true
 			}
 			
@@ -80,7 +80,7 @@ extension CollectionView {
 			return false
 		}
 		@usableFromInline
-		func removeAllSubItems<ItemIdentifierType>(_ value: ItemIdentifierType) where ItemIdentifierType: Hashable {
+		func removeAllSubItems<Item>(_ value: Item) where Item: Hashable {
 			var index = subItems.count-1
 			while index >= 0 {
 				let item = subItems[index]
@@ -91,7 +91,7 @@ extension CollectionView {
 						item.removeAllSubItems(value)
 					}
 				} else {
-					if (item.base as? ItemIdentifierType) == value {
+					if (item.base as? Item) == value {
 						subItems.remove(at: index)
 					} else {
 						item.removeAllSubItems(value)
@@ -102,9 +102,9 @@ extension CollectionView {
 		}
 	}
 	
-	class DataSourceBase<SectionIdentifier, DataType>: NSObject, UICollectionViewDataSource where SectionIdentifier: Hashable, DataType: Hashable {
-        var sections: [SectionData<DataType>] {
-            guard let dataManager = _collectionView?._dataManager as? DataManager<SectionIdentifier, DataType> else { return [] }
+	class DataSourceBase<SectionIdentifier, ItemIdentifier>: NSObject, UICollectionViewDataSource where SectionIdentifier: Hashable, ItemIdentifier: Hashable {
+        var sections: [SectionData<ItemIdentifier>] {
+            guard let dataManager = _collectionView?._dataManager as? DataManager<SectionIdentifier, ItemIdentifier> else { return [] }
             return dataManager.sections
         }
 		weak var _collectionView: CollectionView?

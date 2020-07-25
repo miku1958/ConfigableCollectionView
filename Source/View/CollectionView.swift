@@ -9,7 +9,7 @@
 import UIKit
 
 public var CollectionViewDeletegateInvade: CollectionViewInvadeProtocol.Type?
-public class CollectionView<SectionType, DataType, VerifyType>: UICollectionView {
+public class CollectionView<SectionType, ItemType>: UICollectionView {
 	var _dataManager: CollectionViewDataManager!
 	@usableFromInline
 	var reloadHandlers = [ReloadHandler()]
@@ -52,7 +52,7 @@ public class CollectionView<SectionType, DataType, VerifyType>: UICollectionView
 		super.delegate = newDelegate
 	}
 	
-	required init<SectionType, DataType>(frame: CGRect, collectionViewLayout layout: UICollectionViewLayout, dataManagerInit: (CollectionView) -> DataManager<SectionType, DataType>) {
+	required init<Section, Item>(frame: CGRect, collectionViewLayout layout: UICollectionViewLayout, dataManagerInit: (CollectionView) -> DataManager<Section, Item>) {
 		super.init(frame: frame, collectionViewLayout: layout)
 		
 		let dataManager = dataManagerInit(self)
@@ -131,8 +131,8 @@ extension CollectionView {
 }
 
 // MARK: - initialize
-extension CollectionView where VerifyType == Any, DataType == Any, SectionType: Hashable {
-	public convenience init(layout: UICollectionViewLayout, sectionType: SectionType.Type) {
+extension CollectionView where ItemType == Any, SectionType: Hashable {
+	public convenience init(layout: UICollectionViewLayout) {
 		self.init(frame: .zero, collectionViewLayout: layout, dataManagerInit: {
 			DataManager<SectionType, AnyHashable>(collectionView: $0)
 		})
@@ -142,7 +142,7 @@ extension CollectionView where VerifyType == Any, DataType == Any, SectionType: 
 		_dataManager as! DataManager<SectionType, AnyHashable>
 	}
 }
-extension CollectionView where VerifyType == Any, DataType == Any, SectionType == Any {
+extension CollectionView where ItemType == Any, SectionType == Any {
 	public convenience init(layout: UICollectionViewLayout) {
 		self.init(frame: .zero, collectionViewLayout: layout, dataManagerInit: {
 			DataManager<AnyHashable, AnyHashable>(collectionView: $0)
@@ -154,64 +154,64 @@ extension CollectionView where VerifyType == Any, DataType == Any, SectionType =
 	}
 }
 
-extension CollectionView where VerifyType == Void, DataType: Hashable, SectionType: Hashable {
-	public convenience init(layout: UICollectionViewLayout, dataType: DataType.Type, sectionType: SectionType.Type) {
+extension CollectionView where ItemType: Hashable, SectionType: Hashable {
+	public convenience init(layout: UICollectionViewLayout) {
 		self.init(frame: .zero, collectionViewLayout: layout, dataManagerInit: {
-			DataManager<SectionType, DataType>(collectionView: $0)
+			DataManager<SectionType, ItemType>(collectionView: $0)
 		})
 	}
 	@inline(__always)
-	public var dataManager: DataManager<SectionType, DataType> {
-		_dataManager as! DataManager<SectionType, DataType>
+	public var dataManager: DataManager<SectionType, ItemType> {
+		_dataManager as! DataManager<SectionType, ItemType>
 	}
 }
-extension CollectionView where VerifyType == Void, DataType: Hashable, SectionType == Any {
-	public convenience init(layout: UICollectionViewLayout, dataType: DataType.Type) {
+extension CollectionView where ItemType: Hashable, SectionType == Any {
+	public convenience init(layout: UICollectionViewLayout) {
 		self.init(frame: .zero, collectionViewLayout: layout, dataManagerInit: {
-			DataManager<AnyHashable, DataType>(collectionView: $0)
+			DataManager<AnyHashable, ItemType>(collectionView: $0)
 		})
 	}
 	@inline(__always)
-	public var dataManager: DataManager<AnyHashable, DataType> {
-		_dataManager as! DataManager<AnyHashable, DataType>
+	public var dataManager: DataManager<AnyHashable, ItemType> {
+		_dataManager as! DataManager<AnyHashable, ItemType>
 	}
 }
 
 // MARK: - register view
-public extension CollectionView where VerifyType == Any {
+public extension CollectionView where ItemType == Any {
 	/// 使用多个RegisteredView注册Cell
 	/// view: 创建View, 独立开是为了复用 View, 如果view为UICollectionViewCell, 则初始化无效(不会调用), 会使用UICollectionView.dequeue来实现
-	func register<ViewType, DataType>(dataType: DataType.Type, @ViewBuilder view: @escaping () -> ViewType?, _ builds: RegisteredView<ViewType, DataType>...) where ViewType: View {
+	func register<View, Item>(dataType: ItemType.Type, @ViewBuilder view: @escaping () -> View?, _ builds: RegisteredView<View, Item>...) where View: ViewProtocol {
 		register(view: view, builds)
 	}
 	
-	private func register<ViewType, DataType>(dataType: DataType.Type, @ViewBuilder supplementaryView: @escaping () -> ViewType?, in kind: ElementKindSection, _ builds: RegisteredView<ViewType, DataType>...) where ViewType: View {
+	private func register<View, Item>(dataType: ItemType.Type, @ViewBuilder supplementaryView: @escaping () -> View?, in kind: ElementKindSection, _ builds: RegisteredView<View, Item>...) where View: ViewProtocol {
 		register(supplementaryView: supplementaryView, in: kind, builds)
 	}
 }
-public extension CollectionView where VerifyType == Void {
+public extension CollectionView where ItemType: Hashable {
 	/// 使用多个RegisteredView注册Cell
-	func register<ViewType>(@ViewBuilder view: @escaping () -> ViewType?, _ builds: RegisteredView<ViewType, DataType>...) where ViewType: View {
+	func register<View>(@ViewBuilder view: @escaping () -> View?, _ builds: RegisteredView<View, ItemType>...) where View: ViewProtocol {
 		register(view: view, builds)
 	}
 	
-	private func register<ViewType>(dataType: DataType.Type, @ViewBuilder supplementaryView: @escaping () -> ViewType?, in kind: ElementKindSection, _ builds: RegisteredView<ViewType, DataType>...) where ViewType: View {
+	private func register<View>(@ViewBuilder supplementaryView: @escaping () -> View?, in kind: ElementKindSection, _ builds: RegisteredView<View, ItemType>...) where View: ViewProtocol {
 		register(supplementaryView: supplementaryView, in: kind, builds)
 	}
 }
 
 extension CollectionView {
 	@inline(__always)
-	func register<ViewType, DataType>(view: @escaping () -> ViewType?, _ builds: [RegisteredView<ViewType, DataType>]) where ViewType: View {
+	func register<View, Item>(view: @escaping () -> View?, _ builds: [RegisteredView<View, Item>]) where View: ViewProtocol {
 		
-		var registeredView = RegisteredView<ViewType, DataType>(_view: view)
+		var registeredView = RegisteredView<View, Item>(_view: view)
 		for build in builds {
 			registeredView.bind(from: build)
 		}
 		
 		let reuseIdentifier = UUID().uuidString
-		registerViews[ObjectIdentifier(DataType.self), default: []].append(.init(registeredView, reuseIdentifier: reuseIdentifier))
-		if let type = ViewType.self as? UICollectionViewCell.Type {
+		registerViews[ObjectIdentifier(Item.self), default: []].append(.init(registeredView, reuseIdentifier: reuseIdentifier))
+		if let type = View.self as? UICollectionViewCell.Type {
 			register(type, forCellWithReuseIdentifier: reuseIdentifier)
 		} else {
 			register(CollectionViewCell.self, forCellWithReuseIdentifier: reuseIdentifier)
@@ -230,16 +230,16 @@ extension CollectionView {
 		}
 	}
 	@inline(__always)
-	func register<ViewType, DataType>(supplementaryView: @escaping () -> ViewType?, in kind: ElementKindSection, _ builds: [RegisteredView<ViewType, DataType>]) where ViewType: View {
+	func register<View, Item>(supplementaryView: @escaping () -> View?, in kind: ElementKindSection, _ builds: [RegisteredView<View, Item>]) where View: ViewProtocol {
 		
-		var registeredView = RegisteredView<ViewType, DataType>(_view: supplementaryView)
+		var registeredView = RegisteredView<View, Item>(_view: supplementaryView)
 		for build in builds {
 			registeredView.bind(from: build)
 		}
 		
 		let reuseIdentifier = UUID().uuidString
-		registerSupplementaryViews[ObjectIdentifier(DataType.self), default: []].append(.init(registeredView, reuseIdentifier: reuseIdentifier))
-		if let type = ViewType.self as? UICollectionReusableView.Type {
+		registerSupplementaryViews[ObjectIdentifier(Item.self), default: []].append(.init(registeredView, reuseIdentifier: reuseIdentifier))
+		if let type = View.self as? UICollectionReusableView.Type {
 			register(type, forSupplementaryViewOfKind: kind.identifier, withReuseIdentifier: reuseIdentifier)
 		} else {
 			register(CollectionViewSupplementaryView.self, forSupplementaryViewOfKind: kind.identifier, withReuseIdentifier: reuseIdentifier)
@@ -285,14 +285,14 @@ extension CollectionView {
 		
 		let reuseIdentifier: String
 		
-		init<View, DataType>(_ _view: RegisteredView<View, DataType>, reuseIdentifier: String) {
+		init<View, Item>(_ _view: RegisteredView<View, Item>, reuseIdentifier: String) {
 			self.reuseIdentifier = reuseIdentifier
 			self.view =  {
 				_view._view?() as? UIView
 			}
 			
-			let Data = RegisteredView<View, DataType>.DataFrom
-			let DataWithView = RegisteredView<View, DataType>.DataWithViewFrom
+			let Data = RegisteredView<View, Item>.DataFrom
+			let DataWithView = RegisteredView<View, Item>.DataWithViewFrom
 			
 			if let when = _view._when {
 				self.when = { data in
@@ -338,16 +338,16 @@ extension CollectionView {
 		}
 	}
 	
-	public struct RegisteredView<ViewType, DataType> where ViewType: View {
+	public struct RegisteredView<ViewIdentifier, ItemIdentifier> where ViewIdentifier: ViewProtocol {
 		public struct Data {
 			public let collectionView: CollectionView
-			public let data: DataType
+			public let data: ItemIdentifier
 			public let indexPath: IndexPath
 		}
-		public struct DataWithView<DataType> {
+		public struct DataWithView<ItemIdentifier> {
 			public let collectionView: CollectionView
-			public let view: ViewType
-			public let data: DataType
+			public let view: ViewIdentifier
+			public let data: ItemIdentifier
 			public let indexPath: IndexPath
 			let _configurationState: Any?
 			@available(iOS 14.0, *)
@@ -356,53 +356,53 @@ extension CollectionView {
 			}
 		}
 		static func DataFrom(_ from: _RegisteredView.Data) -> Data? {
-			guard let data = from.data as? DataType else {
+			guard let data = from.data as? ItemIdentifier else {
 				return nil
 			}
 			return .init(collectionView: from.collectionView, data: data, indexPath: from.indexPath)
 		}
-		static func DataWithViewFrom(_ from: _RegisteredView.DataWithView) -> DataWithView<DataType>? {
-			guard let view = from.view as? ViewType, let data = from.data as? DataType else {
+		static func DataWithViewFrom(_ from: _RegisteredView.DataWithView) -> DataWithView<ItemIdentifier>? {
+			guard let view = from.view as? ViewIdentifier, let data = from.data as? ItemIdentifier else {
 				return nil
 			}
 			return .init(collectionView: from.collectionView, view: view, data: data, indexPath: from.indexPath, _configurationState: from._configurationState)
 		}
 
-		public typealias R = RegisteredView<ViewType, DataType>
-		var _view: (() -> ViewType?)?
-		var _config: ((DataWithView<DataType>) -> Void)?
+		public typealias R = RegisteredView<ViewIdentifier, ItemIdentifier>
+		var _view: (() -> ViewIdentifier?)?
+		var _config: ((DataWithView<ItemIdentifier>) -> Void)?
 		var _when: ((Data) -> Bool)?
 		
-		var _tap: ((DataWithView<DataType>) -> Void)?
+		var _tap: ((DataWithView<ItemIdentifier>) -> Void)?
 		
 		var _size: ((Data) -> CGSize)?
 		
-		var _willDisplay: ((DataWithView<DataType>) -> Void)?
-		var _endDisplay: ((DataWithView<DataType>) -> Void)?
+		var _willDisplay: ((DataWithView<ItemIdentifier>) -> Void)?
+		var _endDisplay: ((DataWithView<ItemIdentifier>) -> Void)?
 		
 		/// 决定什么时候需要分配这个 View
 		static public func when(_ act: @escaping (Data) -> Bool) -> R {
 			R(_when: act)
 		}
 		/// 配置View, 每次使用之前都会调用这个
-		static public func config<Mapped>(map transform: @escaping (DataType) throws -> Mapped,_ act: @escaping (DataWithView<Mapped>) -> Void) -> R {
+		static public func config<Mapped>(map transform: @escaping (ItemIdentifier) throws -> Mapped,_ act: @escaping (DataWithView<Mapped>) -> Void) -> R {
 			R(_config: {
 				guard let data = try? transform($0.data) else { return }
 				act(.init(collectionView: $0.collectionView, view: $0.view, data: data, indexPath: $0.indexPath, _configurationState: $0._configurationState))
 			})
 		}
 		/// 配置View, 每次使用之前都会调用这个
-		static public func config<Mapped>(compactMap transform: @escaping (DataType) throws -> Mapped?,_ act: @escaping (DataWithView<Mapped>) -> Void) -> R {
+		static public func config<Mapped>(compactMap transform: @escaping (ItemIdentifier) throws -> Mapped?,_ act: @escaping (DataWithView<Mapped>) -> Void) -> R {
 			R(_config: {
 				guard let data = try? transform($0.data) else { return }
 				act(.init(collectionView: $0.collectionView, view: $0.view, data: data, indexPath: $0.indexPath, _configurationState: $0._configurationState))
 			})
 		}
-		static public func config(_ act: @escaping (DataWithView<DataType>) -> Void) -> R {
+		static public func config(_ act: @escaping (DataWithView<ItemIdentifier>) -> Void) -> R {
 			R(_config: act)
 		}
 		/// 当点击了这个 View 就会调用
-		static public func tap(_ act: @escaping (DataWithView<DataType>) -> Void) -> R {
+		static public func tap(_ act: @escaping (DataWithView<ItemIdentifier>) -> Void) -> R {
 			R(_tap: act)
 		}
 		/// 给这个 View 一个默认尺寸
@@ -411,12 +411,12 @@ extension CollectionView {
 		}
 		
 		/// 配置View, 每次使用之前都会调用这个
-		static public func willDisplay(_ act: @escaping (DataWithView<DataType>) -> Void) -> R {
+		static public func willDisplay(_ act: @escaping (DataWithView<ItemIdentifier>) -> Void) -> R {
 			R(_willDisplay: act)
 		}
 		
 		/// 配置View, 每次使用之前都会调用这个
-		static public func didEndDisplay(_ act: @escaping (DataWithView<DataType>) -> Void) -> R {
+		static public func didEndDisplay(_ act: @escaping (DataWithView<ItemIdentifier>) -> Void) -> R {
 			R(_endDisplay: act)
 		}
 		

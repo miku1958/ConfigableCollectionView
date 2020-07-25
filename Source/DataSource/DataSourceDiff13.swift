@@ -6,12 +6,12 @@
 //
 
 import Foundation
-private typealias AnyHashable = CollectionView<Any, Any, Any>.AnyHashable
+private typealias AnyHashable = CollectionView<Any, Any>.AnyHashable
 /// for test
 @available(iOS 13.0, tvOS 13.0, *)
-class DataSourceDiff13<ItemIdentifierType, VerifyType> where ItemIdentifierType : Hashable  {
+class DataSourceDiff13<ItemIdentifier, VerifyType> where ItemIdentifier : Hashable  {
 	let collectionView: UICollectionView
-	fileprivate var snapshot = NSDiffableDataSourceSnapshot<AnyHashable, ItemIdentifierType>()
+	fileprivate var snapshot = NSDiffableDataSourceSnapshot<AnyHashable, ItemIdentifier>()
 	init(collectionView: UICollectionView) {
 		self.collectionView = collectionView
 	}
@@ -44,19 +44,19 @@ extension DataSourceDiff13 {
 		return IndexPath(item: itemCount-1, section: sectionIndex)
 	}
 	
-	func appendSections<SectionIdentifierType>(_ identifiers: [SectionIdentifierType]) where SectionIdentifierType: Hashable {
+	func appendSections<Section>(_ identifiers: [Section]) where Section: Hashable {
 		snapshot.appendSections(identifiers.map {
 			.package($0)
 		})
 	}
 	// TODO:    得测试一下toIdentifier找不到会怎么样
-	func insertSections<InsertType, BeforeType>(_ identifiers: [InsertType], beforeSection toIdentifier: BeforeType) where InsertType: Hashable, BeforeType: Hashable {
+	func insertSections<Insert, Before>(_ identifiers: [Insert], beforeSection toIdentifier: Before) where Insert: Hashable, Before: Hashable {
 		snapshot.insertSections(identifiers.map({
 			.package($0)
 		}), beforeSection: .package(toIdentifier))
 	}
 	// TODO:    得测试一下toIdentifier找不到会怎么样
-	func insertSections<InsertType, AfterType>(_ identifiers: [InsertType], afterSection toIdentifier: AfterType) where InsertType: Hashable, AfterType: Hashable {
+	func insertSections<Insert, After>(_ identifiers: [Insert], afterSection toIdentifier: After) where Insert: Hashable, After: Hashable {
 		snapshot.insertSections(identifiers.map({
 			.package($0)
 		}), afterSection: .package(toIdentifier))
@@ -69,18 +69,18 @@ extension DataSourceDiff13 {
 	var numberOfItems: Int {
 		snapshot.numberOfItems
 	}
-	func numberOfItems<SectionIdentifierType>(inSection identifier: SectionIdentifierType) -> Int where SectionIdentifierType: Hashable {
+	func numberOfItems<Section>(inSection identifier: Section) -> Int where Section: Hashable {
 		snapshot.numberOfItems(inSection: .package(identifier))
 	}
 	func numberOfItems(atSectionIndex index: Int) -> Int {
 		snapshot.numberOfItems(inSection: snapshot.sectionIdentifiers[index])
 	}
 	
-	func indexOfSection<SectionIdentifierType>(_ identifier: SectionIdentifierType) -> Int? where SectionIdentifierType: Hashable {
+	func indexOfSection<Section>(_ identifier: Section) -> Int? where Section: Hashable {
 		snapshot.indexOfSection(.package(identifier))
 	}
 	
-	func deleteSections<SectionIdentifierType>(_ identifiers: [SectionIdentifierType]) where SectionIdentifierType: Hashable {
+	func deleteSections<Section>(_ identifiers: [Section]) where Section: Hashable {
 		snapshot.deleteSections(identifiers.map {
 			.package($0)
 		})
@@ -101,27 +101,27 @@ extension DataSourceDiff13 {
 			snapshot.appendItems(data.1, toSection: data.0)
 		}
 	}
-	func reverseRootItems<SectionIdentifierType>(inSection identifier: SectionIdentifierType) where SectionIdentifierType: Hashable {
+	func reverseRootItems<Section>(inSection identifier: Section) where Section: Hashable {
 		let section = AnyHashable.package(identifier)
-		let items: [ItemIdentifierType] = snapshot.itemIdentifiers(inSection: section).reversed()
+		let items: [ItemIdentifier] = snapshot.itemIdentifiers(inSection: section).reversed()
 		snapshot.deleteItems(items)
 		snapshot.appendItems(items, toSection: section)
 	}
 	func reverseRootItems(atSectionIndex index: Int) {
 		let section = snapshot.sectionIdentifiers[index]
-		let items: [ItemIdentifierType] = snapshot.itemIdentifiers(inSection: section).reversed()
+		let items: [ItemIdentifier] = snapshot.itemIdentifiers(inSection: section).reversed()
 		snapshot.deleteItems(items)
 		snapshot.appendItems(items, toSection: section)
 	}
 	// TODO:    得测试NSDiffableDataSourceSnapshot找不到的话怎么处理
-	func moveSection<SectionIdentifierType, BeforeType>(_ identifier: SectionIdentifierType, beforeSection: BeforeType) where SectionIdentifierType: Hashable, BeforeType: Hashable {
+	func moveSection<Section, Before>(_ identifier: Section, beforeSection: Before) where Section: Hashable, Before: Hashable {
 		snapshot.moveSection(.package(identifier), beforeSection: .package(beforeSection))
 	}
-	func moveSection<SectionIdentifierType, AfterType>(_ identifier: SectionIdentifierType, afterSection: AfterType) where SectionIdentifierType: Hashable, AfterType: Hashable {
+	func moveSection<Section, After>(_ identifier: Section, afterSection: After) where Section: Hashable, After: Hashable {
 		snapshot.moveSection(.package(identifier), afterSection: .package(afterSection))
 	}
 	// TODO:    NSDiffableDataSourceSectionSnapshot 没有 reload, 得看一下 NSDiffableDataSourceSnapshot 的 reload 到底做了什么
-	func reloadSections<SectionIdentifierType>(_ identifiers: [SectionIdentifierType]) where SectionIdentifierType: Hashable {
+	func reloadSections<Section>(_ identifiers: [Section]) where Section: Hashable {
 		snapshot.reloadSections(identifiers.map {
 			.package($0)
 		})
@@ -131,29 +131,29 @@ extension DataSourceDiff13 {
 // MARK: - DataManager VerifyType == Void
 @available(iOS 13.0, *)
 extension DataSourceDiff13 where VerifyType == Void {
-	func apply(_ datas: [ItemIdentifierType]) {
+	func apply(_ datas: [ItemIdentifier]) {
 		snapshot = .init()
 		// 没有section的情况下会直接闪退
 		snapshot.appendSections([.package(0)])
 		snapshot.appendItems(datas)
 	}
-	func apply<SectionIdentifierType>(_ datas: [ItemIdentifierType], toSection sectionIdentifier: SectionIdentifierType) where SectionIdentifierType: Hashable {
+	func apply<Section>(_ datas: [ItemIdentifier], toSection sectionIdentifier: Section) where Section: Hashable {
 		snapshot = .init()
 		snapshot.appendItems(datas, toSection: .package(sectionIdentifier))
 	}
 	
-	func apply(_ sections: [[ItemIdentifierType]]) {
+	func apply(_ sections: [[ItemIdentifier]]) {
 		snapshot = .init()
 		for pair in sections.enumerated() {
 			snapshot.appendItems(pair.element, toSection: .package(pair.offset))
 		}
 	}
 	
-	func itemIdentifier(for indexPath: IndexPath) -> ItemIdentifierType? {
-		element(for: indexPath) as? ItemIdentifierType
+	func itemIdentifier(for indexPath: IndexPath) -> ItemIdentifier? {
+		element(for: indexPath) as? ItemIdentifier
 	}
 	// TODO:    NSDiffableDataSourceSectionSnapshot.index(of:) 拿到的是不是 visibleItems 的 index?
-	func indexPath(for itemIdentifier: ItemIdentifierType) -> IndexPath? {
+	func indexPath(for itemIdentifier: ItemIdentifier) -> IndexPath? {
 		for section in snapshot.sectionIdentifiers.enumerated() {
 			if let itemIndex = snapshot.itemIdentifiers(inSection: section.element).firstIndex(of: itemIdentifier) {
 				return IndexPath(item: itemIndex, section: section.offset)
@@ -163,31 +163,31 @@ extension DataSourceDiff13 where VerifyType == Void {
 	}
 	
 	// TODO:    如果 NSDiffableDataSourceSnapshot 为空会怎么样
-	func append<SectionIdentifierType>(items: [ItemIdentifierType], toSection sectionIdentifier: SectionIdentifierType) where SectionIdentifierType: Hashable {
+	func append<Section>(items: [ItemIdentifier], toSection sectionIdentifier: Section) where Section: Hashable {
 		snapshot.appendItems(items, toSection: .package(sectionIdentifier))
 	}
 	
 	// TODO:    如果 NSDiffableDataSourceSnapshot 为空会怎么样
-	func append(_ items: [ItemIdentifierType]) {
+	func append(_ items: [ItemIdentifier]) {
 		snapshot.appendItems(items)
 	}
 	// TODO:    得测试一下NSDiffableDataSourceSnapshot找不到的话会怎么样
-	func insertItems(_ identifiers: [ItemIdentifierType], beforeItem beforeIdentifier: ItemIdentifierType) {
+	func insertItems(_ identifiers: [ItemIdentifier], beforeItem beforeIdentifier: ItemIdentifier) {
 		snapshot.insertItems(identifiers, beforeItem: beforeIdentifier)
 	}
 	// TODO:    得测试一下NSDiffableDataSourceSnapshot找不到的话会怎么样
-	func insertItems(_ identifiers: [ItemIdentifierType], afterItem afterIdentifier: ItemIdentifierType) {
+	func insertItems(_ identifiers: [ItemIdentifier], afterItem afterIdentifier: ItemIdentifier) {
 		snapshot.insertItems(identifiers, afterItem: afterIdentifier)
 	}
 	
-	func allItems() -> [ItemIdentifierType] {
+	func allItems() -> [ItemIdentifier] {
 		snapshot.itemIdentifiers
 	}
-	func allItems<SectionIdentifierType>(inSection identifier: SectionIdentifierType) -> [ItemIdentifierType] where SectionIdentifierType: Hashable {
+	func allItems<Section>(inSection identifier: Section) -> [ItemIdentifier] where Section: Hashable {
 		snapshot.itemIdentifiers(inSection: .package(identifier))
 	}
 	
-	func allItems(atSectionIndex index: Int) -> [ItemIdentifierType] {
+	func allItems(atSectionIndex index: Int) -> [ItemIdentifier] {
 		let sections = snapshot.sectionIdentifiers
 		if index < sections.count {
 			return snapshot.itemIdentifiers(inSection: sections[index])
@@ -195,7 +195,7 @@ extension DataSourceDiff13 where VerifyType == Void {
 		return []
 	}
 	
-	func indexPathOfItem(_ identifier: ItemIdentifierType) -> IndexPath? {
+	func indexPathOfItem(_ identifier: ItemIdentifier) -> IndexPath? {
 		for (section, element) in snapshot.sectionIdentifiers.enumerated() {
 			for (item, element) in snapshot.itemIdentifiers(inSection: element).enumerated() {
 				if element == identifier {
@@ -206,56 +206,56 @@ extension DataSourceDiff13 where VerifyType == Void {
 		return nil
 	}
 	
-	func sectionIdentifier<SectionIdentifierType>(containingItem identifier: ItemIdentifierType) -> SectionIdentifierType? where SectionIdentifierType: Hashable {
-		snapshot.sectionIdentifier(containingItem: identifier)?.base as? SectionIdentifierType
+	func sectionIdentifier<Section>(containingItem identifier: ItemIdentifier) -> Section? where Section: Hashable {
+		snapshot.sectionIdentifier(containingItem: identifier)?.base as? Section
 	}
 	
-	func deleteItems(_ identifiers: [ItemIdentifierType]) {
+	func deleteItems(_ identifiers: [ItemIdentifier]) {
 		snapshot.deleteItems(identifiers)
 	}
 	// TODO:    得研究一下同一个 NSDiffableDataSourceSnapshot, 不同 section 存在相同的 item 时会怎么样
-	func moveItem(_ identifier: ItemIdentifierType, beforeItem: ItemIdentifierType) {
+	func moveItem(_ identifier: ItemIdentifier, beforeItem: ItemIdentifier) {
 		snapshot.moveItem(identifier, beforeItem: beforeItem)
 	}
 	
-	func moveItem(_ identifier: ItemIdentifierType, afterItem: ItemIdentifierType) {
+	func moveItem(_ identifier: ItemIdentifier, afterItem: ItemIdentifier) {
 		snapshot.moveItem(identifier, afterItem: afterItem)
 	}
 	
 	// TODO:    测试一下NSDiffableDataSourceSnapshot.reloadItems有什么用
-	func reloadItems(_ identifiers: [ItemIdentifierType]) {
+	func reloadItems(_ identifiers: [ItemIdentifier]) {
 		snapshot.reloadItems(identifiers)
 	}
 	
-	func contains(_ item: ItemIdentifierType) -> Bool {
+	func contains(_ item: ItemIdentifier) -> Bool {
 		snapshot.sectionIdentifier(containingItem: item) != nil
 	}
 }
-// MARK: - DataManager VerifyType == Any aka: ItemIdentifierType == AnyHashable
+// MARK: - DataManager VerifyType == Any aka: ItemIdentifier == AnyHashable
 @available(iOS 13.0, *)
-extension DataSourceDiff13 where ItemIdentifierType == AnyHashable {
-	func apply<ItemIdentifierType>(_ datas: [ItemIdentifierType]) where ItemIdentifierType: Hashable {
+extension DataSourceDiff13 where ItemIdentifier == AnyHashable {
+	func apply<Item>(_ datas: [Item]) where Item: Hashable {
 		snapshot = .init()
 		// TODO:    得测试一下没有section的情况下会怎么样
 		snapshot.appendItems(datas.map({ .package($0) }))
 	}
-	func apply<ItemIdentifierType, SectionIdentifierType>(_ datas: [ItemIdentifierType], toSection sectionIdentifier: SectionIdentifierType) where ItemIdentifierType: Hashable, SectionIdentifierType: Hashable {
+	func apply<Section, Item>(_ datas: [Item], toSection sectionIdentifier: Section) where Item: Hashable, Section: Hashable {
 		snapshot = .init()
 		snapshot.appendItems(datas.map({ .package($0) }), toSection: .package(sectionIdentifier))
 	}
 	
-	func apply<ItemIdentifierType>(_ sections: [[ItemIdentifierType]]) where ItemIdentifierType: Hashable {
+	func apply<Item>(_ sections: [[Item]]) where Item: Hashable {
 		snapshot = .init()
 		for pair in sections.enumerated() {
 			snapshot.appendItems(pair.element.map({ .package($0) }), toSection: .package(pair.offset))
 		}
 	}
-	func itemIdentifier<ItemIdentifierType>(for indexPath: IndexPath) -> ItemIdentifierType? where ItemIdentifierType : Hashable {
-		element(for: indexPath) as? ItemIdentifierType
+	func itemIdentifier<Item>(for indexPath: IndexPath) -> Item? where Item : Hashable {
+		element(for: indexPath) as? Item
 	}
 	
 	// TODO:    NSDiffableDataSourceSectionSnapshot.index(of:) 拿到的是不是 visibleItems 的 index?
-	func indexPath<ItemIdentifierType>(for itemIdentifier: ItemIdentifierType) -> IndexPath? where ItemIdentifierType : Hashable {
+	func indexPath<Item>(for itemIdentifier: Item) -> IndexPath? where Item : Hashable {
 		for section in snapshot.sectionIdentifiers.enumerated() {
 			if let itemIndex = snapshot.itemIdentifiers(inSection: section.element).firstIndex(of: .package(itemIdentifier)) {
 				return IndexPath(item: itemIndex, section: section.offset)
@@ -265,10 +265,10 @@ extension DataSourceDiff13 where ItemIdentifierType == AnyHashable {
 	}
 	
 	// TODO:    如果 NSDiffableDataSourceSnapshot 为空会怎么样
-	func append<ItemIdentifierType, SectionIdentifierType>(_ items: [ItemIdentifierType], toSection sectionIdentifier: SectionIdentifierType) where ItemIdentifierType: Hashable, SectionIdentifierType: Hashable {
+	func append<Section, Item>(_ items: [Item], toSection sectionIdentifier: Section) where Item: Hashable, Section: Hashable {
 		snapshot.appendItems(items.map({ .package($0) }), toSection: .package(sectionIdentifier))
 	}
-	func append<ItemIdentifierType>(_ items: [ItemIdentifierType]) where ItemIdentifierType: Hashable {
+	func append<Item>(_ items: [Item]) where Item: Hashable {
 		//如果 NSDiffableDataSourceSnapshot 为空会crash: 'NSInternalInconsistencyException', reason: 'There are currently no sections in the data source. Please add a section first.'
 		if snapshot.numberOfSections == 0 {
 			snapshot.appendSections([.package(0)])
@@ -276,35 +276,35 @@ extension DataSourceDiff13 where ItemIdentifierType == AnyHashable {
 		snapshot.appendItems(items.map({ .package($0) }))
 	}
 	// TODO:    得测试一下NSDiffableDataSourceSnapshot找不到的话会怎么样
-	func insertItems<InsertType, BeforeType>(_ identifiers: [InsertType], beforeItem beforeIdentifier: BeforeType) where InsertType: Hashable, BeforeType: Hashable {
+	func insertItems<Insert, Before>(_ identifiers: [Insert], beforeItem beforeIdentifier: Before) where Insert: Hashable, Before: Hashable {
 		snapshot.insertItems(identifiers.map({ .package($0) }), beforeItem: .package(beforeIdentifier))
 	}
 	// TODO:    得测试一下NSDiffableDataSourceSnapshot找不到的话会怎么样
-	func insertItems<InsertType, AfterType>(_ identifiers: [InsertType], afterItem afterIdentifier: AfterType) where InsertType: Hashable, AfterType: Hashable {
+	func insertItems<Insert, After>(_ identifiers: [Insert], afterItem afterIdentifier: After) where Insert: Hashable, After: Hashable {
 		snapshot.insertItems(identifiers.map({ .package($0) }), afterItem: .package(afterIdentifier))
 	}
-	func allItems<ItemIdentifierType, SectionIdentifierType>(inSection identifier: SectionIdentifierType) -> [ItemIdentifierType] where ItemIdentifierType: Hashable, SectionIdentifierType: Hashable {
+	func allItems<Section, Item>(inSection identifier: Section) -> [Item] where Item: Hashable, Section: Hashable {
 		snapshot.itemIdentifiers(inSection: .package(identifier)).compactMap {
-			$0.base as? ItemIdentifierType
+			$0.base as? Item
 		}
 	}
-	func allItems<ItemIdentifierType>(atSectionIndex index: Int) -> [ItemIdentifierType] where ItemIdentifierType: Hashable {
+	func allItems<Item>(atSectionIndex index: Int) -> [Item] where Item: Hashable {
 		let sections = snapshot.sectionIdentifiers
 		if index < sections.count {
 			return snapshot.itemIdentifiers(inSection: sections[index]).compactMap {
-				$0.base as? ItemIdentifierType
+				$0.base as? Item
 			}
 		}
 		
 		return []
 	}
-	func allItems<ItemIdentifierType>() -> [ItemIdentifierType] where ItemIdentifierType: Hashable {
+	func allItems<Item>() -> [Item] where Item: Hashable {
 		snapshot.itemIdentifiers.compactMap {
-			$0 as? ItemIdentifierType
+			$0 as? Item
 		}
 	}
 	
-	func indexPathOfItem<ItemIdentifierType>(_ identifier: ItemIdentifierType) -> IndexPath? where ItemIdentifierType: Hashable {
+	func indexPathOfItem<Item>(_ identifier: Item) -> IndexPath? where Item: Hashable {
 		for (section, element) in snapshot.sectionIdentifiers.enumerated() {
 			for (item, element) in snapshot.itemIdentifiers(inSection: element).enumerated() {
 				if element == identifier {
@@ -314,24 +314,24 @@ extension DataSourceDiff13 where ItemIdentifierType == AnyHashable {
 		}
 		return nil
 	}
-	func sectionIdentifier<ItemIdentifierType, SectionIdentifierType>(containingItem identifier: ItemIdentifierType) -> SectionIdentifierType? where ItemIdentifierType: Hashable , SectionIdentifierType: Hashable {
-		snapshot.sectionIdentifier(containingItem: .package(identifier))?.base as? SectionIdentifierType
+	func sectionIdentifier<Section, Item>(containingItem identifier: Item) -> Section? where Item: Hashable , Section: Hashable {
+		snapshot.sectionIdentifier(containingItem: .package(identifier))?.base as? Section
 	}
-	func deleteItems<ItemIdentifierType>(_ identifiers: [ItemIdentifierType]) where ItemIdentifierType: Hashable {
+	func deleteItems<Item>(_ identifiers: [Item]) where Item: Hashable {
 		snapshot.deleteItems(identifiers.map({ .package($0) }))
 	}
 	// TODO:    得研究一下同一个 NSDiffableDataSourceSnapshot, 不同 section 存在相同的 item 时会怎么样
-	func moveItem<MovedType, BeforeType>(_ identifier: MovedType, beforeItem: BeforeType) where MovedType: Hashable, BeforeType: Hashable {
+	func moveItem<Moved, Before>(_ identifier: Moved, beforeItem: Before) where Moved: Hashable, Before: Hashable {
 		snapshot.moveItem(.package(identifier), beforeItem: .package(beforeItem))
 	}
-	func moveItem<MovedType, AfterType>(_ identifier: MovedType, afterItem: AfterType) where MovedType: Hashable, AfterType: Hashable {
+	func moveItem<Moved, After>(_ identifier: Moved, afterItem: After) where Moved: Hashable, After: Hashable {
 		snapshot.moveItem(.package(identifier), afterItem: .package(afterItem))
 	}
-	func reloadItems<ItemIdentifierType>(_ identifiers: [ItemIdentifierType]) where ItemIdentifierType: Hashable {
+	func reloadItems<Item>(_ identifiers: [Item]) where Item: Hashable {
 		snapshot.reloadItems(identifiers.map({ .package($0) }))
 	}
 	
-	func contains<ItemIdentifierType>(_ item: ItemIdentifierType) -> Bool where ItemIdentifierType : Hashable {
+	func contains<Item>(_ item: Item) -> Bool where Item : Hashable {
 		snapshot.sectionIdentifier(containingItem: .package(item)) != nil
 	}
 }
