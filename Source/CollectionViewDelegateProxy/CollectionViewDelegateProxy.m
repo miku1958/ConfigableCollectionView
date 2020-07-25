@@ -56,7 +56,9 @@ static NSArray<NSSEL *> *allDataSourceMethod;
 @property (nonatomic, strong) NSHashTable *customDelegates;
 @property (nonatomic, strong) NSArray<NSSEL *> *allMethods;
 @end
-
+ 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wprotocol"
 @implementation CollectionViewDelegateProxy
 
 - (instancetype)initWithCollection:(UICollectionView *)collection {

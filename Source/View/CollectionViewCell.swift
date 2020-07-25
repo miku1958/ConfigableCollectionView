@@ -10,6 +10,8 @@ import UIKit
 
 class CollectionViewCell: UICollectionViewCell {
 	var subview: UIView?
+	/// (UICellConfigurationState) -> Void
+	var updateUICellConfigurationState: ((Any) -> Void)?
 	var createSubview: (() -> UIView?)? {
 		didSet {
 			subview?.removeFromSuperview()
@@ -36,5 +38,10 @@ class CollectionViewCell: UICollectionViewCell {
 		} else {
 			return nil
 		}
+	}
+	
+	@available(iOS 14.0, *)
+	override func updateConfiguration(using state: UICellConfigurationState) {
+		updateUICellConfigurationState?(state)
 	}
 }

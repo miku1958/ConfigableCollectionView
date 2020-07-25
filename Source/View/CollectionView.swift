@@ -271,6 +271,7 @@ extension CollectionView {
 			let view: UIView
 			let data: Any
 			let indexPath: IndexPath
+			var _configurationState: Any?
 		}
 		let view: () -> UIView?
 		let config: (DataWithView) -> Void
@@ -347,7 +348,12 @@ extension CollectionView {
 			public let collectionView: CollectionView
 			public let view: ViewType
 			public let data: DataType
-			public let indexPath: IndexPath 
+			public let indexPath: IndexPath
+			let _configurationState: Any?
+			@available(iOS 14.0, *)
+			public var configurationState: UICellConfigurationState {
+				_configurationState as? UICellConfigurationState ?? .init(traitCollection: .current)
+			}
 		}
 		static func DataFrom(_ from: _RegisteredView.Data) -> Data? {
 			guard let data = from.data as? DataType else {
@@ -359,7 +365,7 @@ extension CollectionView {
 			guard let view = from.view as? ViewType, let data = from.data as? DataType else {
 				return nil
 			}
-			return .init(collectionView: from.collectionView, view: view, data: data, indexPath: from.indexPath)
+			return .init(collectionView: from.collectionView, view: view, data: data, indexPath: from.indexPath, _configurationState: from._configurationState)
 		}
 
 		public typealias R = RegisteredView<ViewType, DataType>
@@ -382,14 +388,14 @@ extension CollectionView {
 		static public func config<Mapped>(map transform: @escaping (DataType) throws -> Mapped,_ act: @escaping (DataWithView<Mapped>) -> Void) -> R {
 			R(_config: {
 				guard let data = try? transform($0.data) else { return }
-				act(.init(collectionView: $0.collectionView, view: $0.view, data: data, indexPath: $0.indexPath))
+				act(.init(collectionView: $0.collectionView, view: $0.view, data: data, indexPath: $0.indexPath, _configurationState: $0._configurationState))
 			})
 		}
 		/// 配置View, 每次使用之前都会调用这个
-		static public func config<Mapped>(map transform: @escaping (DataType) throws -> Mapped?,_ act: @escaping (DataWithView<Mapped>) -> Void) -> R {
+		static public func config<Mapped>(compactMap transform: @escaping (DataType) throws -> Mapped?,_ act: @escaping (DataWithView<Mapped>) -> Void) -> R {
 			R(_config: {
 				guard let data = try? transform($0.data) else { return }
-				act(.init(collectionView: $0.collectionView, view: $0.view, data: data, indexPath: $0.indexPath))
+				act(.init(collectionView: $0.collectionView, view: $0.view, data: data, indexPath: $0.indexPath, _configurationState: $0._configurationState))
 			})
 		}
 		static public func config(_ act: @escaping (DataWithView<DataType>) -> Void) -> R {
@@ -445,6 +451,14 @@ extension CollectionView {
 				let element = _dataManager.element(for: indexPath)
 				// 这个不能放到willDisplay里去调, 不然如果是自适应尺寸的cell会出错
 				registerd.config(.init(collectionView: self, view: view, data: element, indexPath: indexPath))
+				
+				if #available(iOS 14.0, *) {
+					cell.updateUICellConfigurationState = { [weak self] in
+						guard let self = self else { return }
+						let state = $0 as! UICellConfigurationState
+						registerd.config(.init(collectionView: self, view: view, data: element, indexPath: indexPath, _configurationState: state))
+					}
+				}
 			}
 		} else { // 注册的 View 是 UICollectionViewCell
 			if cell.isFirstTimeDequeued {
