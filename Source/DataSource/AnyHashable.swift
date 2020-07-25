@@ -21,11 +21,18 @@ extension CollectionView {
 		/// Creates a type-erased hashable value that wraps the given instance.
 		///
 		/// - Parameter base: A hashable value to wrap.
-		@usableFromInline
-		init<H>(_ base: H) where H : Hashable {
+		private init<H>(_ base: H) where H : Hashable {
 			self.base = base
 			self.baseType = H.self
 			self.hashValue = base.hashValue
+		}
+		@usableFromInline
+		static func package<H>(_ base: H) -> AnyHashable where H : Hashable {
+			if let any = base as? AnyHashable {
+				return any
+			} else {
+				return .init(base)
+			}
 		}
 	}
 }

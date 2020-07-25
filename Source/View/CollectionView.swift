@@ -9,7 +9,7 @@
 import UIKit
 
 public var CollectionViewDeletegateInvade: CollectionViewInvadeProtocol.Type?
-public class CollectionView<DataType, VerifyType>: UICollectionView {
+public class CollectionView<SectionType, DataType, VerifyType>: UICollectionView {
 	var _dataManager: CollectionViewDataManager!
 	@usableFromInline
 	var reloadHandlers = [ReloadHandler()]
@@ -52,7 +52,7 @@ public class CollectionView<DataType, VerifyType>: UICollectionView {
 		super.delegate = newDelegate
 	}
 	
-	required init<DataManagerType>(frame: CGRect, collectionViewLayout layout: UICollectionViewLayout, dataManagerInit: (CollectionView) -> DataManager<DataManagerType>) {
+	required init<SectionType, DataType>(frame: CGRect, collectionViewLayout layout: UICollectionViewLayout, dataManagerInit: (CollectionView) -> DataManager<SectionType, DataType>) {
 		super.init(frame: frame, collectionViewLayout: layout)
 		
 		let dataManager = dataManagerInit(self)
@@ -131,28 +131,49 @@ extension CollectionView {
 }
 
 // MARK: - initialize
-extension CollectionView where VerifyType == Any, DataType == Any {
-	public convenience init(layout: UICollectionViewLayout) {
+extension CollectionView where VerifyType == Any, DataType == Any, SectionType: Hashable {
+	public convenience init(layout: UICollectionViewLayout, sectionType: SectionType.Type) {
 		self.init(frame: .zero, collectionViewLayout: layout, dataManagerInit: {
-			DataManager<AnyHashable>(collectionView: $0)
+			DataManager<SectionType, AnyHashable>(collectionView: $0)
 		})
 	}
-	
 	@inline(__always)
-	public var dataManager: DataManager<AnyHashable> {
-		_dataManager as! DataManager<AnyHashable>
+	public var dataManager: DataManager<SectionType, AnyHashable> {
+		_dataManager as! DataManager<SectionType, AnyHashable>
+	}
+}
+extension CollectionView where VerifyType == Any, DataType == Any, SectionType == Any {
+	public convenience init(layout: UICollectionViewLayout) {
+		self.init(frame: .zero, collectionViewLayout: layout, dataManagerInit: {
+			DataManager<AnyHashable, AnyHashable>(collectionView: $0)
+		})
+	}
+	@inline(__always)
+	public var dataManager: DataManager<AnyHashable, AnyHashable> {
+		_dataManager as! DataManager<AnyHashable, AnyHashable>
 	}
 }
 
-extension CollectionView where VerifyType == Void, DataType: Hashable {
-	public convenience init(layout: UICollectionViewLayout, dataType: DataType.Type) {
+extension CollectionView where VerifyType == Void, DataType: Hashable, SectionType: Hashable {
+	public convenience init(layout: UICollectionViewLayout, dataType: DataType.Type, sectionType: SectionType.Type) {
 		self.init(frame: .zero, collectionViewLayout: layout, dataManagerInit: {
-			DataManager<DataType>(collectionView: $0)
+			DataManager<SectionType, DataType>(collectionView: $0)
 		})
 	}
 	@inline(__always)
-	public var dataManager: DataManager<DataType> {
-		_dataManager as! DataManager<DataType>
+	public var dataManager: DataManager<SectionType, DataType> {
+		_dataManager as! DataManager<SectionType, DataType>
+	}
+}
+extension CollectionView where VerifyType == Void, DataType: Hashable, SectionType == Any {
+	public convenience init(layout: UICollectionViewLayout, dataType: DataType.Type) {
+		self.init(frame: .zero, collectionViewLayout: layout, dataManagerInit: {
+			DataManager<AnyHashable, DataType>(collectionView: $0)
+		})
+	}
+	@inline(__always)
+	public var dataManager: DataManager<AnyHashable, DataType> {
+		_dataManager as! DataManager<AnyHashable, DataType>
 	}
 }
 
@@ -317,20 +338,28 @@ extension CollectionView {
 	}
 	
 	public struct RegisteredView<ViewType, DataType> where ViewType: View {
-		public typealias Data = (collectionView: CollectionView, data: DataType, indexPath: IndexPath)
-		public typealias DataWithView<DataType> = (collectionView: CollectionView, view: ViewType, data: DataType, indexPath: IndexPath)
-		
+		public struct Data {
+			public let collectionView: CollectionView
+			public let data: DataType
+			public let indexPath: IndexPath
+		}
+		public struct DataWithView<DataType> {
+			public let collectionView: CollectionView
+			public let view: ViewType
+			public let data: DataType
+			public let indexPath: IndexPath 
+		}
 		static func DataFrom(_ from: _RegisteredView.Data) -> Data? {
 			guard let data = from.data as? DataType else {
 				return nil
 			}
-			return (from.collectionView, data, from.indexPath)
+			return .init(collectionView: from.collectionView, data: data, indexPath: from.indexPath)
 		}
 		static func DataWithViewFrom(_ from: _RegisteredView.DataWithView) -> DataWithView<DataType>? {
 			guard let view = from.view as? ViewType, let data = from.data as? DataType else {
 				return nil
 			}
-			return (from.collectionView, view, data, from.indexPath)
+			return .init(collectionView: from.collectionView, view: view, data: data, indexPath: from.indexPath)
 		}
 
 		public typealias R = RegisteredView<ViewType, DataType>
@@ -351,16 +380,16 @@ extension CollectionView {
 		}
 		/// 配置View, 每次使用之前都会调用这个
 		static public func config<Mapped>(map transform: @escaping (DataType) throws -> Mapped,_ act: @escaping (DataWithView<Mapped>) -> Void) -> R {
-			R(_config: { collectionView, view, data, indexPath in
-				guard let data = try? transform(data) else { return }
-				act((collectionView, view, data, indexPath))
+			R(_config: {
+				guard let data = try? transform($0.data) else { return }
+				act(.init(collectionView: $0.collectionView, view: $0.view, data: data, indexPath: $0.indexPath))
 			})
 		}
 		/// 配置View, 每次使用之前都会调用这个
 		static public func config<Mapped>(map transform: @escaping (DataType) throws -> Mapped?,_ act: @escaping (DataWithView<Mapped>) -> Void) -> R {
-			R(_config: { collectionView, view, data, indexPath in
-				guard let data = try? transform(data) else { return }
-				act((collectionView, view, data, indexPath))
+			R(_config: {
+				guard let data = try? transform($0.data) else { return }
+				act(.init(collectionView: $0.collectionView, view: $0.view, data: data, indexPath: $0.indexPath))
 			})
 		}
 		static public func config(_ act: @escaping (DataWithView<DataType>) -> Void) -> R {

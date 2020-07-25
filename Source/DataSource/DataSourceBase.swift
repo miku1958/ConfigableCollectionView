@@ -11,19 +11,36 @@ extension CollectionView {
 	@usableFromInline
 	struct SectionData<ItemType> {
 		@usableFromInline
-		let section: AnyHashable
+		let anySection: AnyHashable
+		
+		@inline(__always)
+		@usableFromInline
+		func section<SectionType>() -> SectionType {
+			if let section = anySection as? SectionType {
+				return section
+			} else if let section = anySection.base as? SectionType {
+				return section
+			} else {
+				fatalError("wtf are you doing")
+			}
+		}
+		@inline(__always)
+		@usableFromInline
+		func trySection<SectionType>() -> SectionType? {
+			anySection.base as? SectionType
+		}
 		@usableFromInline
 		var items: [ItemData<ItemType>]
 		@usableFromInline
 		init<SectionIdentifierType>(sectionIdentifier: SectionIdentifierType, items: [ItemType] = []) where SectionIdentifierType: Hashable {
-			self.section = AnyHashable(sectionIdentifier)
+			self.anySection = .package(sectionIdentifier)
 			self.items = items.map({
 				ItemData($0)
 			})
 		}
 		@usableFromInline
 		init(anySectionIdentifier: AnyHashable) {
-			self.section = anySectionIdentifier
+			self.anySection = anySectionIdentifier
 			self.items = []
 		}
 	}
@@ -85,9 +102,9 @@ extension CollectionView {
 		}
 	}
 	
-    class DataSourceBase<DataType>: NSObject, UICollectionViewDataSource where DataType: Hashable {
+	class DataSourceBase<SectionIdentifier, DataType>: NSObject, UICollectionViewDataSource where SectionIdentifier: Hashable, DataType: Hashable {
         var sections: [SectionData<DataType>] {
-            guard let dataManager = _collectionView?._dataManager as? DataManager<DataType> else { return [] }
+            guard let dataManager = _collectionView?._dataManager as? DataManager<SectionIdentifier, DataType> else { return [] }
             return dataManager.sections
         }
 		weak var _collectionView: CollectionView?
