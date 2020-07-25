@@ -8,7 +8,6 @@
 
 import UIKit
 
-public var CollectionViewDeletegateInvade: CollectionViewInvadeProtocol.Type?
 public class CollectionView<SectionType, ItemType>: UICollectionView {
 	var _dataManager: CollectionViewDataManager!
 	@usableFromInline
@@ -517,20 +516,13 @@ extension CollectionView {
 				view = cell
 			}
 			
-			let call = {
-				let element = collection._dataManager.element(for: indexPath)
-				guard
-					!registerd.tap(.init(collectionView: collection, view: view, data: element, indexPath: indexPath)), // 处理自定义的tap, 如果成功则取消后续操作
-					let delegates = collection.collectionDelegate.customDelegates.allObjects as? [UICollectionViewDelegate]
-					else { return }
-				for delegate in delegates {
-					delegate.collectionView?(collectionView, didSelectItemAt: indexPath)
-				}
-			}
-			if let invade = CollectionViewDeletegateInvade {
-				invade.didselected(view: view, call: call)
-			} else {
-				call()
+			let element = collection._dataManager.element(for: indexPath)
+			guard
+				!registerd.tap(.init(collectionView: collection, view: view, data: element, indexPath: indexPath)), // 处理自定义的tap, 如果成功则取消后续操作
+				let delegates = collection.collectionDelegate.customDelegates.allObjects as? [UICollectionViewDelegate]
+			else { return }
+			for delegate in delegates {
+				delegate.collectionView?(collectionView, didSelectItemAt: indexPath)
 			}
 		}
 	}
