@@ -15,6 +15,7 @@ public class CollectionView<DataType, VerifyType>: UICollectionView {
 	var reloadHandlers = [ReloadHandler()]
 	/// [dataType: registerd]
 	var registerViews = [ObjectIdentifier: [_RegisteredView]]()
+	var registerSupplementaryViews = [ObjectIdentifier: [_RegisteredView]]()
 	var cachingViews = [String: UIView]()
 	
 	// swiftlint:disable weak_delegate
@@ -159,14 +160,22 @@ extension CollectionView where VerifyType == Void, DataType: Hashable {
 public extension CollectionView where VerifyType == Any {
 	/// 使用多个RegisteredView注册Cell
 	/// view: 创建View, 独立开是为了复用 View, 如果view为UICollectionViewCell, 则初始化无效(不会调用), 会使用UICollectionView.dequeue来实现
-	func register<View, DataType>(dataType: DataType.Type, @ViewBuilder view: @escaping () -> View?, _ builds: RegisteredView<View, DataType>...) {
+	func register<ViewType, DataType>(dataType: DataType.Type, @ViewBuilder view: @escaping () -> ViewType?, _ builds: RegisteredView<ViewType, DataType>...) where ViewType: View {
 		register(view: view, builds)
+	}
+	
+	private func register<ViewType, DataType>(dataType: DataType.Type, @ViewBuilder supplementaryView: @escaping () -> ViewType?, in kind: ElementKindSection, _ builds: RegisteredView<ViewType, DataType>...) where ViewType: View {
+		register(supplementaryView: supplementaryView, in: kind, builds)
 	}
 }
 public extension CollectionView where VerifyType == Void {
 	/// 使用多个RegisteredView注册Cell
 	func register<ViewType>(@ViewBuilder view: @escaping () -> ViewType?, _ builds: RegisteredView<ViewType, DataType>...) where ViewType: View {
 		register(view: view, builds)
+	}
+	
+	private func register<ViewType>(dataType: DataType.Type, @ViewBuilder supplementaryView: @escaping () -> ViewType?, in kind: ElementKindSection, _ builds: RegisteredView<ViewType, DataType>...) where ViewType: View {
+		register(supplementaryView: supplementaryView, in: kind, builds)
 	}
 }
 
@@ -185,6 +194,34 @@ extension CollectionView {
 			register(type, forCellWithReuseIdentifier: reuseIdentifier)
 		} else {
 			register(CollectionViewCell.self, forCellWithReuseIdentifier: reuseIdentifier)
+		}
+	}
+	public enum ElementKindSection {
+		case header
+		case footer
+		fileprivate var identifier: String {
+			switch self {
+			case .header:
+				return UICollectionView.elementKindSectionHeader
+			case .footer:
+				return UICollectionView.elementKindSectionFooter
+			}
+		}
+	}
+	@inline(__always)
+	func register<ViewType, DataType>(supplementaryView: @escaping () -> ViewType?, in kind: ElementKindSection, _ builds: [RegisteredView<ViewType, DataType>]) where ViewType: View {
+		
+		var registeredView = RegisteredView<ViewType, DataType>(_view: supplementaryView)
+		for build in builds {
+			registeredView.bind(from: build)
+		}
+		
+		let reuseIdentifier = UUID().uuidString
+		registerSupplementaryViews[ObjectIdentifier(DataType.self), default: []].append(.init(registeredView, reuseIdentifier: reuseIdentifier))
+		if let type = ViewType.self as? UICollectionReusableView.Type {
+			register(type, forSupplementaryViewOfKind: kind.identifier, withReuseIdentifier: reuseIdentifier)
+		} else {
+			register(CollectionViewSupplementaryView.self, forSupplementaryViewOfKind: kind.identifier, withReuseIdentifier: reuseIdentifier)
 		}
 	}
 	
