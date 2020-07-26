@@ -39,9 +39,10 @@ class CollectionViewCell: UICollectionViewCell {
 			return nil
 		}
 	}
-	
+	#if swift(>=5.3)
 	@available(iOS 14.0, *)
 	override func updateConfiguration(using state: UICellConfigurationState) {
 		updateUICellConfigurationState?(state)
 	}
+	#endif
 }

@@ -70,7 +70,7 @@ extension CollectionView.DataManager {
 			}
 			
 			let dataManager = collectionView._dataManager as! Self
-			
+			#if swift(>=5.3)
 			if #available(iOS 14.0, *), dataManager.useDiffDataSource {
 				var _completion = Optional(completion.call)
 				for section in dataManager.sections {
@@ -85,11 +85,14 @@ extension CollectionView.DataManager {
 					}
 					
 					addItems(section.items, to: nil)
-
+					
 					dataManager.diffDataSource?.apply(snapshot, to: section.section(), animatingDifferences: animatingDifferences, completion: _completion)
 					_completion = nil
 				}
-			} else if #available(iOS 13.0, *) {
+				return
+			}
+			#endif
+			if #available(iOS 13.0, *) {
 				var snapshot = NSDiffableDataSourceSnapshot<SectionIdentifier, ItemIdentifier>()
 				
 				snapshot.appendSections(dataManager.sections.map({
@@ -442,7 +445,7 @@ extension CollectionView.DataManager where SectionIdentifier == CollectionView.A
 			return reload
 		}
 	}
-	
+	#if swift(>=5.3)
 	@available(iOS 14.0, *)
 	@inlinable
 	public func visibleItems<Section>(in sectionIdentifier: Section) -> [ItemIdentifier] where Section: Hashable {
@@ -458,6 +461,7 @@ extension CollectionView.DataManager where SectionIdentifier == CollectionView.A
 		}
 		return diff.snapshot(for: .package(sectionIdentifier)).visibleItems
 	}
+	#endif
 }
 // MARK: - SectionType: Hashable
 extension CollectionView.DataManager where SectionType: Hashable {
@@ -676,7 +680,7 @@ extension CollectionView.DataManager where SectionType: Hashable {
 			return reload
 		}
 	}
-	
+	#if swift(>=5.3)
 	@available(iOS 14.0, *)
 	@inlinable
 	public func visibleItems(in sectionIdentifier: SectionType) -> [ItemIdentifier] {
@@ -692,6 +696,7 @@ extension CollectionView.DataManager where SectionType: Hashable {
 		}
 		return diff.snapshot(for: section.section()).visibleItems
 	}
+	#endif
 }
 // MARK: - 13, SectionType: Hashable
 @available(iOS 13.0, *)
@@ -995,7 +1000,7 @@ extension CollectionView.DataManager where ItemType: Hashable {
 			}
 		}
 	}
-	
+	#if swift(>=5.3)
 	// MARK: - iOS14的内容
 	@available(iOS 14.0, tvOS 14.0, *)
 	@inlinable
@@ -1204,6 +1209,7 @@ extension CollectionView.DataManager where ItemType: Hashable {
 			$0.base
 		}
 	}
+	#endif
 }
 // MARK: - ItemType: Hashable, SectionIdentifier == AnyHashable
 extension CollectionView.DataManager where ItemType: Hashable, SectionIdentifier == CollectionView.AnyHashable {
@@ -1285,15 +1291,15 @@ extension CollectionView.DataManager where ItemType: Hashable, SectionIdentifier
 		}
 		return nil
 	}
-	
+	#if swift(>=5.3)
 	@available(iOS 14.0, tvOS 14.0, *)
 	@inlinable
 	public func visibleItems<Section>(inSection identifier: Section) -> [ItemIdentifier]? where Section : Hashable {
 		guard let diff = diffDataSource else {
 			return sections.first {
 				$0.anySection == identifier
-			}?.items.map {
-				$0.base
+				}?.items.map {
+					$0.base
 			}
 		}
 		collectionView?.reloadImmediately()
@@ -1309,10 +1315,11 @@ extension CollectionView.DataManager where ItemType: Hashable, SectionIdentifier
 	public func rootItems<Section>(inSection identifier: Section) -> [ItemIdentifier]? where Section : Hashable {
 		sections.first {
 			$0.anySection == identifier
-		}?.items.map {
-			$0.base
+			}?.items.map {
+				$0.base
 		}
 	}
+	#endif
 }
 // MARK: - ItemType: Hashable, SectionType: Hashable
 extension CollectionView.DataManager where ItemType: Hashable, SectionType: Hashable {
@@ -1389,15 +1396,15 @@ extension CollectionView.DataManager where ItemType: Hashable, SectionType: Hash
 		}
 		return nil
 	}
-	
+	#if swift(>=5.3)
 	@available(iOS 14.0, tvOS 14.0, *)
 	@inlinable
 	public func visibleItems(inSection identifier: SectionType) -> [ItemIdentifier]? {
 		guard let diff = diffDataSource else {
 			return sections.first {
 				$0.anySection == identifier
-			}?.items.map {
-				$0.base
+				}?.items.map {
+					$0.base
 			}
 		}
 		collectionView?.reloadImmediately()
@@ -1413,10 +1420,11 @@ extension CollectionView.DataManager where ItemType: Hashable, SectionType: Hash
 	public func rootItems(inSection identifier: SectionType) -> [ItemIdentifier]? {
 		sections.first {
 			$0.anySection == identifier
-		}?.items.map {
-			$0.base
+			}?.items.map {
+				$0.base
 		}
 	}
+	#endif
 }
 
 // MARK: - ItemIdentifier == AnyHashable
@@ -1749,7 +1757,7 @@ extension CollectionView.DataManager where ItemIdentifier == CollectionView.AnyH
 		}()
 		return reloadHandler.commit()
 	}
-	
+	#if swift(>=5.3)
 	@available(iOS 14.0, tvOS 14.0, *)
 	@inlinable
 	@discardableResult
@@ -1919,6 +1927,7 @@ extension CollectionView.DataManager where ItemIdentifier == CollectionView.AnyH
 			$0.base.base as? Item
 		}
 	}
+	#endif
 }
 // MARK: - ItemIdentifier, SectionIdentifier == AnyHashable
 extension CollectionView.DataManager where ItemIdentifier == CollectionView.AnyHashable, SectionIdentifier == CollectionView.AnyHashable {
@@ -2003,15 +2012,15 @@ extension CollectionView.DataManager where ItemIdentifier == CollectionView.AnyH
 		}
 		return nil
 	}
-	
+	#if swift(>=5.3)
 	@available(iOS 14.0, tvOS 14.0, *)
 	@inlinable
 	public func visibleItems<Section, Item>(inSection identifier: Section) -> [Item]? where Item: Hashable, Section : Hashable {
 		guard let diff = diffDataSource else {
 			return sections.first {
 				$0.anySection == identifier
-			}?.items.compactMap {
-				$0.base.base as? Item
+				}?.items.compactMap {
+					$0.base.base as? Item
 			}
 		}
 		collectionView?.reloadImmediately()
@@ -2028,10 +2037,11 @@ extension CollectionView.DataManager where ItemIdentifier == CollectionView.AnyH
 	public func rootItems<Section, Item>(inSection identifier: Section) -> [Item]? where Item: Hashable, Section: Hashable {
 		sections.first {
 			$0.anySection == identifier
-		}?.items.compactMap {
-			$0.base.base as? Item
+			}?.items.compactMap {
+				$0.base.base as? Item
 		}
 	}
+	#endif
 }
 // MARK: - ItemIdentifier == AnyHashable, SectionType: Hashable
 extension CollectionView.DataManager where ItemIdentifier == CollectionView.AnyHashable, SectionType: Hashable {
@@ -2096,15 +2106,15 @@ extension CollectionView.DataManager where ItemIdentifier == CollectionView.AnyH
 		}
 		return nil
 	}
-	
+	#if swift(>=5.3)
 	@available(iOS 14.0, tvOS 14.0, *)
 	@inlinable
 	public func visibleItems<Item>(inSection identifier: SectionType) -> [Item]? where Item: Hashable, SectionType : Hashable {
 		guard let diff = diffDataSource else {
 			return sections.first {
 				$0.anySection == identifier
-			}?.items.compactMap {
-				$0.base.base as? Item
+				}?.items.compactMap {
+					$0.base.base as? Item
 			}
 		}
 		collectionView?.reloadImmediately()
@@ -2121,9 +2131,10 @@ extension CollectionView.DataManager where ItemIdentifier == CollectionView.AnyH
 	public func rootItems<Item>(inSection identifier: SectionType) -> [Item]? where Item: Hashable {
 		sections.first {
 			$0.anySection == identifier
-		}?.items.compactMap {
-			$0.base.base as? Item
+			}?.items.compactMap {
+				$0.base.base as? Item
 		}
 	}
+	#endif
 }
 

@@ -175,7 +175,6 @@ extension CollectionView where ItemType: Hashable, SectionType == Any {
 		_dataManager as! DataManager<AnyHashable, ItemType>
 	}
 }
-
 // MARK: - register view
 public extension CollectionView where ItemType == Any {
 	/// 使用多个RegisteredView注册Cell
@@ -184,9 +183,9 @@ public extension CollectionView where ItemType == Any {
 		register(view: view, builds)
 	}
 	
-	private func register<View, Item>(dataType: ItemType.Type, @ViewBuilder supplementaryView: @escaping () -> View?, in kind: ElementKindSection, _ builds: RegisteredView<View, Item>...) where View: ViewProtocol {
-		register(supplementaryView: supplementaryView, in: kind, builds)
-	}
+//func register<View, Item>(dataType: ItemType.Type, @ViewBuilder supplementaryView: @escaping () -> View?, in kind: ElementKindSection, _ builds: RegisteredView<View, Item>...) where View: ViewProtocol {
+//		register(supplementaryView: supplementaryView, in: kind, builds)
+//	}
 }
 public extension CollectionView where ItemType: Hashable {
 	/// 使用多个RegisteredView注册Cell
@@ -194,9 +193,9 @@ public extension CollectionView where ItemType: Hashable {
 		register(view: view, builds)
 	}
 	
-	private func register<View>(@ViewBuilder supplementaryView: @escaping () -> View?, in kind: ElementKindSection, _ builds: RegisteredView<View, ItemType>...) where View: ViewProtocol {
-		register(supplementaryView: supplementaryView, in: kind, builds)
-	}
+//	func register<View>(@ViewBuilder supplementaryView: @escaping () -> View?, in kind: ElementKindSection, _ builds: RegisteredView<View, ItemType>...) where View: ViewProtocol {
+//		register(supplementaryView: supplementaryView, in: kind, builds)
+//	}
 }
 
 extension CollectionView {
@@ -349,10 +348,12 @@ extension CollectionView {
 			public let data: ItemIdentifier
 			public let indexPath: IndexPath
 			let _configurationState: Any?
+			#if swift(>=5.3)
 			@available(iOS 14.0, *)
 			public var configurationState: UICellConfigurationState {
 				_configurationState as? UICellConfigurationState ?? .init(traitCollection: .current)
 			}
+			#endif
 		}
 		static func DataFrom(_ from: _RegisteredView.Data) -> Data? {
 			guard let data = from.data as? ItemIdentifier else {
@@ -450,7 +451,7 @@ extension CollectionView {
 				let element = _dataManager.element(for: indexPath)
 				// 这个不能放到willDisplay里去调, 不然如果是自适应尺寸的cell会出错
 				registerd.config(.init(collectionView: self, view: view, data: element, indexPath: indexPath))
-				
+				#if swift(>=5.3)
 				if #available(iOS 14.0, *) {
 					cell.updateUICellConfigurationState = { [weak self] in
 						guard let self = self else { return }
@@ -458,6 +459,7 @@ extension CollectionView {
 						registerd.config(.init(collectionView: self, view: view, data: element, indexPath: indexPath, _configurationState: state))
 					}
 				}
+				#endif
 			}
 		} else { // 注册的 View 是 UICollectionViewCell
 			if cell.isFirstTimeDequeued {
