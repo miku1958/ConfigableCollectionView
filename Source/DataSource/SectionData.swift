@@ -32,11 +32,9 @@ extension CollectionView {
 		@usableFromInline
 		var items: [ItemData<ItemIdentifier>]
 		@usableFromInline
-		init<Section>(sectionIdentifier: Section, items: [ItemIdentifier] = []) where Section: Hashable {
+		init<Section>(sectionIdentifier: Section, items: [ItemData<ItemIdentifier>] = []) where Section: Hashable {
 			self.anySection = .package(sectionIdentifier)
-			self.items = items.map({
-				ItemData($0)
-			})
+			self.items = items
 		}
 		@usableFromInline
 		init(anySectionIdentifier: AnyHashable) {

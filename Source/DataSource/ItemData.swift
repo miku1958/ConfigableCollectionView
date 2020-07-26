@@ -13,16 +13,29 @@ extension CollectionView {
 		@usableFromInline
 		let base: ItemIdentifier
 		@usableFromInline
+		func tryBase<Item>() -> Item? {
+			if let base = base as? Item {
+				return base
+			} else if let base = (base as? AnyHashable)?.base as? Item {
+				return base
+			} else {
+				return nil
+			}
+		}
+		@usableFromInline
 		init(_ base: ItemIdentifier) {
 			self.base = base
 		}
 		@usableFromInline
 		var subItems: [ItemData] = []
 		@usableFromInline
-		var allItems: [ItemIdentifier] {
-			var result = [base]
+		func allItems<Item>() -> [Item] {
+			var result = [Item]()
+			if let base = base as? Item {
+				result.append(base)
+			}
 			for sub in subItems {
-				result.append(contentsOf: sub.allItems)
+				result.append(contentsOf: sub.allItems())
 			}
 			return result
 		}
