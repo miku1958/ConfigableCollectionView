@@ -179,7 +179,7 @@ extension CollectionView where ItemType: Hashable, SectionType == Any {
 public extension CollectionView where ItemType == Any {
 	/// 使用多个RegisteredView注册Cell
 	/// view: 创建View, 独立开是为了复用 View, 如果view为UICollectionViewCell, 则初始化无效(不会调用), 会使用UICollectionView.dequeue来实现
-	func register<View, Item>(dataType: ItemType.Type, @ViewBuilder view: @escaping () -> View?, _ builds: RegisteredView<View, Item>...) where View: ViewProtocol {
+	func register<View, Item>(dataType: Item.Type, @ViewBuilder view: @escaping () -> View?, _ builds: RegisteredView<View, Item>...) where View: ViewProtocol, Item: Hashable {
 		register(view: view, builds)
 	}
 	
