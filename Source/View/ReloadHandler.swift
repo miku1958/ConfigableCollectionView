@@ -9,50 +9,99 @@ import Foundation
 
 public class ReloadHandler {
 	@usableFromInline
-	init() { }
-	fileprivate var needReload = false
-	@usableFromInline
-	internal var _reload: (_ animatingDifferences: Bool, _ completion: [() -> Void]) -> Void = { _, _ in }
+	typealias Completion = () -> Void
 	
+	@usableFromInline
+	typealias Reload = (_ animatingDifferences: Bool, _ completions: [Completion]) -> Void
+	
+	@usableFromInline init() { }
+	
+	@usableFromInline
+	internal var _baseReload: Reload = { _, _  in }
+	
+	@usableFromInline
+	internal var _temporaryReload: (reload: Reload, option: (animatingDifferences: Bool, completions: [Completion]))?
+	
+	fileprivate var needReloadBase = false
 	fileprivate var animatingDifferences = true
-	fileprivate var completion = [() -> Void]()
+	fileprivate var completions = [Completion]()
+}
+
+extension ReloadHandler {
+	@usableFromInline
+	internal func commit(temporaryReload: @escaping Reload) -> ReloadHandler {
+		reloadImmediately()
+		_temporaryReload = (temporaryReload, (true, []))
+		
+		DispatchQueue.main.async {
+			self.reloadTemporaryImmediately()
+		}
+		return self
+	}
 	
 	@usableFromInline
 	internal func commit() -> ReloadHandler {
-		if !needReload {
-			needReload = true
+		reloadTemporaryImmediately()
+		if !needReloadBase {
+			needReloadBase = true
 			DispatchQueue.main.async {
-				self.reloadImmediately()
+				self.reloadBaseImmediately()
 			}
 		}
 		return self
 	}
-    
-    public func reloadImmediately() {
-		defer {
-			completion = []
-		}
-		guard needReload else { return }
-		_reload(animatingDifferences, completion)
-		needReload = false
-		animatingDifferences = true
+	
+	func reloadTemporaryImmediately() {
+		guard let reload = _temporaryReload else { return }
+		reload.reload(reload.option.animatingDifferences, reload.option.completions)
+		_temporaryReload = nil
 	}
 	
+	func reloadBaseImmediately() {
+		defer {
+			completions = []
+		}
+		guard needReloadBase else { return }
+		_baseReload(animatingDifferences, completions)
+		needReloadBase = false
+		animatingDifferences = true
+	}
+}
+	
+extension ReloadHandler {
+	public func reloadImmediately() {
+		reloadTemporaryImmediately()
+		reloadBaseImmediately()
+	}
 	@available(iOS 13.0, tvOS 13.0, *)
     @discardableResult
 	public func on(animatingDifferences: Bool, completion: (() -> Void)? = nil) -> ReloadHandler {
-		self.animatingDifferences = animatingDifferences
-        if let completion = completion {
-            self.completion.append(completion)
-        }
+		if _temporaryReload != nil {
+			_temporaryReload?.option.animatingDifferences = animatingDifferences
+			if let completion = completion {
+				_temporaryReload?.option.completions.append(completion)
+			}
+		} else {
+			self.animatingDifferences = animatingDifferences
+			if let completion = completion {
+				self.completions.append(completion)
+			}
+		}
+
         return self
 	}
 	
     @discardableResult
 	public func on(completion: (() -> Void)? = nil) -> ReloadHandler {
-        if let completion = completion {
-            self.completion.append(completion)
-        }
+		if _temporaryReload != nil {
+			if let completion = completion {
+				_temporaryReload?.option.completions.append(completion)
+			}
+		} else {
+			if let completion = completion {
+				self.completions.append(completion)
+			}
+		}
         return self
 	}
 }

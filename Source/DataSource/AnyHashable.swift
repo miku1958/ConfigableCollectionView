@@ -38,7 +38,6 @@ extension CollectionView {
 }
 
 extension CollectionView.AnyHashable {
-	
 	public static func == (lhs: Self, rhs: Self) -> Bool {
 		guard
 			lhs.baseType == rhs.baseType,
@@ -57,5 +56,15 @@ extension CollectionView.AnyHashable {
 			return false
 		}
 		return true
+	}
+}
+
+extension CollectionView.AnyHashable: CustomDebugStringConvertible {
+	public var debugDescription: String {
+		if let convert = base as? CustomDebugStringConvertible {
+			return convert.debugDescription
+		} else {
+			return "\(base)"
+		}
 	}
 }

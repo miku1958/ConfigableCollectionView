@@ -8,7 +8,13 @@
 import Foundation
 
 extension CollectionView.DataManager where ItemIdentifier == CollectionView.AnyHashable, SectionIdentifier == CollectionView.AnyHashable {
-	
+	@inlinable
+	@discardableResult
+	public func applyItems<Item>(_ items: [Item]) -> ReloadHandler where Item: Hashable {
+		_applyItems(items, map: {
+			.init(.package($0))
+		})
+	}
 	@inlinable
 	@discardableResult
 	public func applySections<Section, Item>(_ sections: [(section: Section, items: [Item])]) -> ReloadHandler where Section: Hashable, Item: Hashable {

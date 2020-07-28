@@ -1,6 +1,0 @@
-framework module Pods_ConfigableCollectionViewDemo {
-  umbrella header "Pods-ConfigableCollectionViewDemo-umbrella.h"
-
-  export *
-  module * { export * }
-}

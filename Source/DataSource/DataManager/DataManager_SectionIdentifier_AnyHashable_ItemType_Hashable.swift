@@ -10,6 +10,13 @@ import Foundation
 extension CollectionView.DataManager where ItemType: Hashable, SectionIdentifier == CollectionView.AnyHashable {
 	@inlinable
 	@discardableResult
+	public func applyItems(_ items: [ItemIdentifier]) -> ReloadHandler {
+		_applyItems(items, map: {
+			.init($0)
+		})
+	}
+	@inlinable
+	@discardableResult
 	public func applySections<Section>(_ sections: [(section: Section, items: [ItemIdentifier])]) -> ReloadHandler where Section: Hashable {
 		_applySections(sections, map: {
 			.init($0)
@@ -23,11 +30,6 @@ extension CollectionView.DataManager where ItemType: Hashable, SectionIdentifier
 		})
 	}
 	
-	// NSDiffableDataSourceSnapshot 为空会crash
-	// 'NSInternalInconsistencyException', reason: 'There are currently no sections in the data source. Please add a section first.'
-	
-	// 如果toSction找不到会crash
-	// 'NSInternalInconsistencyException', reason: 'Invalid parameter not satisfying: section != NSNotFound'
 	@inlinable
 	@discardableResult
 	public func appendItems<Section>(_ items: [ItemIdentifier], toSection sectionIdentifier: Section) -> ReloadHandler where Section: Hashable {
@@ -54,6 +56,12 @@ extension CollectionView.DataManager where ItemType: Hashable, SectionIdentifier
 	@inlinable
 	public func rootItems<Section>(inSection identifier: Section) -> [ItemIdentifier]? where Section : Hashable {
 		_rootItems(inSection: identifier)
+	}
+	
+	@available(iOS 14.0, tvOS 14.0, *)
+	@inlinable
+	public func rootItems(atSectionIndex index: Int) -> [ItemIdentifier]? {
+		_rootItems(atSectionIndex: index)
 	}
 	#endif
 }

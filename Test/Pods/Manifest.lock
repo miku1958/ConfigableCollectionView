@@ -1,0 +1,16 @@
+PODS:
+  - ConfigableCollectionView (1.0.0)
+
+DEPENDENCIES:
+  - ConfigableCollectionView (from `../Source`)
+
+EXTERNAL SOURCES:
+  ConfigableCollectionView:
+    :path: "../Source"
+
+SPEC CHECKSUMS:
+  ConfigableCollectionView: a5ae409fb3133ec5883f82c52ddeed9fb6ec48b6
+
+PODFILE CHECKSUM: f817a4cb38d91c0a89fc2390ee4df643bdd74578
+
+COCOAPODS: 1.9.3

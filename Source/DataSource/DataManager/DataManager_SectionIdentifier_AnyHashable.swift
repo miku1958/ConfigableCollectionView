@@ -31,8 +31,8 @@ extension CollectionView.DataManager where SectionIdentifier == CollectionView.A
 	}
 	
 	@inlinable
-	public func numberOfItems<Section>(inSection identifier: Section) -> Int where Section: Hashable {
-		_numberOfItems(inSection: identifier)
+	public func numberOfRootItems<Section>(inSection identifier: Section) -> Int where Section: Hashable {
+		_numberOfRootItems(inSection: identifier)
 	}
 	@inlinable
 	public func sectionIdentifiers<Section>() -> [Section] where Section: Hashable {

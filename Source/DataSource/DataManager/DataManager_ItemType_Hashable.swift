@@ -10,15 +10,8 @@ import Foundation
 extension CollectionView.DataManager where ItemType: Hashable {
 	@inlinable
 	@discardableResult
-	public func applyItems(_ items: [ItemIdentifier]) -> ReloadHandler {
-		_applyItems(items, map: {
-			.init($0)
-		})
-	}
-	@inlinable
-	@discardableResult
-	public func applyItems(_ items: [ItemIdentifier], atSection index: Int) -> ReloadHandler {
-		_applyItems(items, atSection: index, map: {
+	public func applyItems(_ items: [ItemIdentifier], atSectionIndex index: Int) -> ReloadHandler {
+		_applyItems(items, atSectionIndex: index, map: {
 			.init($0)
 		})
 	}
@@ -70,7 +63,7 @@ extension CollectionView.DataManager where ItemType: Hashable {
 	}
 	
 	@inlinable
-	public func allItems(atSection index: Int) -> [ItemIdentifier]? {
+	public func allItems(atSectionIndex index: Int) -> [ItemIdentifier]? {
 		_allItems(atSectionIndex: index)
 	}
 	
@@ -83,13 +76,13 @@ extension CollectionView.DataManager where ItemType: Hashable {
 	@inlinable
 	@discardableResult
 	public func moveItem(_ identifier: ItemIdentifier, beforeItem beforeIdentifier: ItemIdentifier) -> ReloadHandler {
-		_moveItem(identifier, toIdentifier: beforeIdentifier)
+		_moveItem(identifier, toIdentifier: beforeIdentifier, indexOffset: 0)
 	}
 	
 	@inlinable
 	@discardableResult
 	public func moveItem(_ identifier: ItemIdentifier, afterItem afterIdentifier: ItemIdentifier) -> ReloadHandler {
-		_moveItem(identifier, toIdentifier: afterIdentifier)
+		_moveItem(identifier, toIdentifier: afterIdentifier, indexOffset: 1)
 	}
 	
 	@inlinable
@@ -108,13 +101,18 @@ extension CollectionView.DataManager where ItemType: Hashable {
 	@available(iOS 14.0, tvOS 14.0, *)
 	@inlinable
 	@discardableResult
-	public func appendChildItems(_ childItems: [ItemIdentifier], to parent: ItemIdentifier?) -> ReloadHandler {
-		_appendChildItems(childItems, to: parent, map: {
+	public func appendChildItems(_ childItems: [ItemIdentifier], to parent: ItemIdentifier?, recursivePath: KeyPath<ItemIdentifier, [ItemIdentifier]>? = nil) -> ReloadHandler {
+		var _recursivePath: ((ItemIdentifier) -> [ItemIdentifier])?
+		if let recursivePath = recursivePath {
+			_recursivePath = {
+				$0[keyPath: recursivePath]
+			}
+		}
+		return _appendChildItems(childItems, to: parent, recursivePath: _recursivePath, map: {
 			.init($0)
 		})
 	}
 	
-	// expand 的对象找不到不会有任何效果
 	@available(iOS 14.0, tvOS 14.0, *)
 	@inlinable
 	@discardableResult
@@ -155,8 +153,8 @@ extension CollectionView.DataManager where ItemType: Hashable {
 	
 	@available(iOS 14.0, tvOS 14.0, *)
 	@inlinable
-	public func visibleItems(atSection index: Int) -> [ItemIdentifier]? {
-		_visibleItems(atSection: index, compactMap: nil)
+	public func visibleItems(atSectionIndex index: Int) -> [ItemIdentifier]? {
+		_visibleItems(atSectionIndex: index, compactMap: nil)
 	}
 	
 	@available(iOS 14.0, *)
@@ -173,7 +171,7 @@ extension CollectionView.DataManager where ItemType: Hashable {
 	
 	@available(iOS 14.0, tvOS 14.0, *)
 	@inlinable
-	public func rootItems(atSection index: Int) -> [ItemIdentifier]? {
+	public func rootItems(atSectionIndex index: Int) -> [ItemIdentifier]? {
 		_rootItems(atSectionIndex: index)
 	}
 	#endif

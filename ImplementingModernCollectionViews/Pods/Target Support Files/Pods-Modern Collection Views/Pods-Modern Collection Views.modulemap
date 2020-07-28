@@ -1,0 +1,6 @@
+framework module Pods_Modern_Collection_Views {
+  umbrella header "Pods-Modern Collection Views-umbrella.h"
+
+  export *
+  module * { export * }
+}

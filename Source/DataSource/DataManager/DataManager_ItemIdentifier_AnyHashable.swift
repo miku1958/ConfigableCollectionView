@@ -10,15 +10,8 @@ import Foundation
 extension CollectionView.DataManager where ItemIdentifier == CollectionView.AnyHashable {
 	@inlinable
 	@discardableResult
-	public func applyItems<Item>(_ items: [Item]) -> ReloadHandler where Item: Hashable {
-		_applyItems(items, map: {
-			.init(.package($0))
-		})
-	}
-	@inlinable
-	@discardableResult
-	public func applyItems<Item>(_ items: [Item], atSection index: Int) -> ReloadHandler where Item: Hashable {
-		_applyItems(items, atSection: index, map: {
+	public func applyItems<Item>(_ items: [Item], atSectionIndex index: Int) -> ReloadHandler where Item: Hashable {
+		_applyItems(items, atSectionIndex: index, map: {
 			.init(.package($0))
 		})
 	}
@@ -54,7 +47,7 @@ extension CollectionView.DataManager where ItemIdentifier == CollectionView.AnyH
 			.init(.package($0))
 		})
 	}
-	// TODO:    得测试一下NSDiffableDataSourceSnapshot找不到的话会怎么样
+	
 	@inlinable
 	@discardableResult
 	public func insertItems<Insert, After>(_ identifiers: [Insert], afterItem afterIdentifier: After) -> ReloadHandler where Insert: Hashable, After: Hashable {
@@ -82,15 +75,14 @@ extension CollectionView.DataManager where ItemIdentifier == CollectionView.AnyH
 	@inlinable
 	@discardableResult
 	public func moveItem<Moved, Before>(_ identifier: Moved, beforeItem beforeIdentifier: Before) -> ReloadHandler where Moved: Hashable, Before: Hashable {
-		_moveItem(.package(identifier), toIdentifier: .package(beforeIdentifier))
+		_moveItem(.package(identifier), toIdentifier: .package(beforeIdentifier), indexOffset: 0)
 	}
 	@inlinable
 	@discardableResult
 	public func moveItem<Moved, After>(_ identifier: Moved, afterItem afterIdentifier: After) -> ReloadHandler where Moved: Hashable, After: Hashable {
-		_moveItem(.package(identifier), toIdentifier: .package(afterIdentifier))
+		_moveItem(.package(identifier), toIdentifier: .package(afterIdentifier), indexOffset: 1)
 	}
 	
-	// TODO:    测试一下NSDiffableDataSourceSnapshot.reloadItems有什么用
 	@inlinable
 	@discardableResult
 	public func reloadItems<Item>(_ identifiers: [Item]) -> ReloadHandler where Item: Hashable {
@@ -107,8 +99,8 @@ extension CollectionView.DataManager where ItemIdentifier == CollectionView.AnyH
 	@available(iOS 14.0, tvOS 14.0, *)
 	@inlinable
 	@discardableResult
-	public func appendChildItems<Child, Parent>(_ childItems: [Child], to parent: Parent) -> ReloadHandler where Child: Hashable, Parent: Hashable {
-		_appendChildItems(childItems, to: parent, map:  {
+	public func appendChildItems<Child, Parent>(_ childItems: [Child], to parent: Parent, recursivePath: ((Child) -> [Child])? = nil) -> ReloadHandler where Child: Hashable, Parent: Hashable {
+		_appendChildItems(childItems, to: parent, recursivePath: recursivePath, map:  {
 			.init(.package($0))
 		})
 	}
@@ -158,8 +150,8 @@ extension CollectionView.DataManager where ItemIdentifier == CollectionView.AnyH
 	
 	@available(iOS 14.0, tvOS 14.0, *)
 	@inlinable
-	public func visibleItems<Item>(atSection index: Int) -> [Item]? where Item: Hashable {
-		_visibleItems(atSection: index, compactMap: {
+	public func visibleItems<Item>(atSectionIndex index: Int) -> [Item]? where Item: Hashable {
+		_visibleItems(atSectionIndex: index, compactMap: {
 			$0.base as? Item
 		})
 	}

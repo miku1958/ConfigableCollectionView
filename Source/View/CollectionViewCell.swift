@@ -29,6 +29,9 @@ class CollectionViewCell: UICollectionViewCell {
 			}
 		}
 	}
+}
+
+extension CollectionViewCell {
 	override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
 		subview?.point(inside: point, with: event) ?? super.point(inside: point, with: event)
 	}

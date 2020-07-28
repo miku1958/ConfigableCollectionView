@@ -11,7 +11,7 @@ import Foundation
 extension CollectionView.DataManager {
 	@inlinable
 	@inline(__always)
-	func _numberOfItems<Section>(inSection identifier: Section) -> Int where Section: Hashable {
+	func _numberOfRootItems<Section>(inSection identifier: Section) -> Int where Section: Hashable {
 		sections.first {
 			$0.anySection == identifier
 		}?.items.count ?? 0
@@ -102,19 +102,19 @@ extension CollectionView.DataManager {
 	@inline(__always)
 	func _deleteItems<Item>(_ identifiers: [Item]) -> ReloadHandler where Item: Hashable {
 		for identifier in identifiers {
-			var section = 0
-			while section < sections.count {
-				var index = sections[section].items.count-1
-				while section > 0 {
-					let item = sections[section].items[index]
+			var sectionIndex = sections.count - 1
+			while sectionIndex >= 0 {
+				var itemIndex = sections[sectionIndex].items.count-1
+				while itemIndex >= 0 {
+					let item = sections[sectionIndex].items[itemIndex]
 					if item.tryBase() == identifier {
-						sections[section].items.remove(at: index)
+						sections[sectionIndex].items.remove(at: itemIndex)
 					} else {
 						item.removeAllSubItems(identifier)
 					}
-					index -= 1
+					itemIndex -= 1
 				}
-				section += 1
+				sectionIndex -= 1
 			}
 		}
 		
@@ -128,28 +128,31 @@ extension CollectionView.DataManager {
 	// 'NSInternalInconsistencyException', reason: 'Invalid parameter not satisfying: toIndex != NSNotFound'
 	@inlinable
 	@inline(__always)
-	func _moveItem(_ identifier: ItemIdentifier, toIdentifier: ItemIdentifier) -> ReloadHandler {
-		var sectionIndex = 0
+	func _moveItem(_ identifier: ItemIdentifier, toIdentifier: ItemIdentifier, indexOffset: Int) -> ReloadHandler {
+		var sectionIndex = sections.count - 1
 		var itemIndex = 0
 		var from: (section: Int, item: Int)?
 		var to: (section: Int, item: Int)?
 		
-		while sectionIndex < sections.count {
-			itemIndex = 0
-			while itemIndex < sections[sectionIndex].items.count {
+		while sectionIndex >= 0  {
+			itemIndex = sections[sectionIndex].items.count - 1
+			while itemIndex >= 0 {
 				let current = sections[sectionIndex].items[itemIndex].base
 				if current == identifier {
 					from = (sectionIndex, itemIndex)
 				} else if current == toIdentifier {
 					to = (sectionIndex, itemIndex)
 				}
-				if let from = from, let to = to {
-					sections[to.section].items.insert(sections[from.section].items.remove(at: from.item), at: to.item)
+				if let from = from, var to = to {
+					if from.section == to.section, from.item < to.item {
+						to.item -= 1
+					}
+					sections[to.section].items.insert(sections[from.section].items.remove(at: from.item), at: to.item + indexOffset)
 					return reloadHandler.commit()
 				}
-				itemIndex += 1
+				itemIndex -= 1
 			}
-			sectionIndex += 1
+			sectionIndex -= 1
 		}
 		assert(from != nil, "Invalid parameter not satisfying: fromIndex != NSNotFound")
 		assert(to != nil, "Invalid parameter not satisfying: toIndex != NSNotFound")
@@ -160,13 +163,13 @@ extension CollectionView.DataManager {
 	@inline(__always)
 	func _reloadItems<Item>(_ identifiers: [Item], map: (Item) -> ItemIdentifier) -> ReloadHandler where Item: Hashable {
 		func filter() -> (indexPaths: [IndexPath], ids: [ItemIdentifier]) {
-			var identifiersSet = Set(identifiers)
+			let identifiersSet = Set(identifiers)
 			
 			var indexPaths = [IndexPath]()
 			var ids = [ItemIdentifier]()
 			for (sectionIndex, element) in sections.enumerated() {
 				for (itemIndex, element) in element.items.enumerated() {
-					if let item = element.tryBase() as Item?, identifiersSet.insert(item).inserted {
+					if let item = element.tryBase() as Item?, identifiersSet.contains(item) {
 						indexPaths.append(IndexPath(item: itemIndex, section: sectionIndex))
 						ids.append(map(item))
 					}
@@ -174,45 +177,26 @@ extension CollectionView.DataManager {
 			}
 			return (indexPaths, ids)
 		}
-		if #available(iOS 13.0, *) {
-			guard let diff = diffDataSource else {
-				return reloadHandler
-			}
-			
-			let result = filter()
-			
-			let reload = ReloadHandler()
-			collectionView?.reloadHandlers.append(reload)
-			reload._reload = { [weak collectionView] animatingDifferences, completion in
+		let result = filter()
+		guard !result.ids.isEmpty else {
+			return reloadHandler
+		}
+		if #available(iOS 13.0, *), let diff = diffDataSource {
+			return reloadHandler.commit(temporaryReload: { animatingDifferences, completion in
 				var snap = diff.snapshot()
 				snap.reloadItems(result.ids)
 				diff.apply(snap, animatingDifferences: animatingDifferences, completion: completion.call)
-				collectionView?.reloadHandlers.removeAll {
-					ObjectIdentifier($0) == ObjectIdentifier(reload)
-				}
-			}
-			return reload
-		} else {
-			guard collectionView?.dataSource != nil else {
-				return reloadHandler
-			}
-			
-			let result = filter()
-			
-			let reload = ReloadHandler()
-			collectionView?.reloadHandlers.append(reload)
-			reload._reload = { [weak collectionView] animatingDifferences, completion in
+			})
+		} else if collectionView?.dataSource != nil {
+			return reloadHandler.commit(temporaryReload: { [weak collectionView] animatingDifferences, completion in
 				UIView.animate(withDuration: 0, animations: {
 					collectionView?.reloadItems(at: result.indexPaths)
 				}, completion: { _ in
 					completion.call()
-					collectionView?.reloadHandlers.removeAll {
-						ObjectIdentifier($0) == ObjectIdentifier(reload)
-					}
 				})
-			}
-			return reload
+			})
 		}
+		return reloadHandler
 	}
 	// MARK: - append
 	// NSDiffableDataSourceSnapshot 为空会crash
@@ -237,10 +221,10 @@ extension CollectionView.DataManager {
 		
 		let itemUnique = items.unique()
 		filterAddingItem(set: itemUnique.set)
-		
-		sections[sectionIndex].items.append(contentsOf: itemUnique.array.map {
+		let items = itemUnique.array.map {
 			map($0)
-		})
+		}
+		sections[sectionIndex].items.append(contentsOf: items)
 		return reloadHandler.commit()
 	}
 	
@@ -283,7 +267,7 @@ extension CollectionView.DataManager {
 	@inlinable
 	@inline(__always)
 	func _allItems<Item>(atSectionIndex index: Int) -> [Item]? where Item: Hashable {
-		if index < sections.count {
+		if index >= 0, index < sections.count {
 			return sections[index].items.flatMap {
 				$0.allItems()
 			}
@@ -304,10 +288,7 @@ extension CollectionView.DataManager {
 	// MARK: - iOS14的内容
 	@inlinable
 	@inline(__always)
-	func _appendChildItems<Child, Parent>(_ childItems: [Child], to parent: Parent, map: (Child) -> CollectionView.ItemData<ItemIdentifier>) -> ReloadHandler where Child: Hashable, Parent: Hashable {
-		
-		let itemsUnique = childItems.unique()
-		filterAddingItem(set: itemsUnique.set)
+	func _appendChildItems<Child, Parent>(_ childItems: [Child], to parent: Parent?, recursivePath: ((Child) -> [Child])?, map: (Child) -> CollectionView.ItemData<ItemIdentifier>) -> ReloadHandler where Child: Hashable, Parent: Hashable {
 		
 		useDiffDataSource = true
 		func find(item: CollectionView.ItemData<ItemIdentifier>) -> CollectionView.ItemData<ItemIdentifier>? {
@@ -322,35 +303,50 @@ extension CollectionView.DataManager {
 			}
 			return nil
 		}
+		func addItems(_ items: [Child], to parent: CollectionView.ItemData<ItemIdentifier>?) {
+			let mapItems = items.map(map)
+			
+			if let recursivePath = recursivePath {
+				for (item, mapItem) in zip(items, mapItems) {
+					let subItems = recursivePath(item)
+					if !subItems.isEmpty {
+						addItems(subItems, to: mapItem)
+					}
+				}
+			}
+
+			if let parent = parent {
+				parent.subItems.append(contentsOf:  mapItems)
+			} else {
+				guard !sections.isEmpty else {
+					assertionFailure("There are currently no sections in the data source. Please add a section first.")
+					return
+				}
+				sections[sections.count-1].items.append(contentsOf: mapItems)
+			}
+		}
 		{
 			for section in sections {
 				for item in section.items {
 					if let found = find(item: item) {
-						found.subItems.append(contentsOf: itemsUnique.array.map(map))
+						addItems(childItems, to: found)
 						return
 					}
 				}
 			}
+			addItems(childItems, to: nil)
 		}()
 		return reloadHandler.commit()
 	}
 	
+	// expand 的对象找不到不会crash
 	@available(iOS 14.0, tvOS 14.0, *)
 	@inlinable
 	@inline(__always)
 	func _expand(parents: [ItemIdentifier]) -> ReloadHandler {
-		
 		guard let diff = diffDataSource else { return reloadHandler }
-		collectionView?.reloadImmediately()
-		let reload = ReloadHandler()
-		collectionView?.reloadHandlers.append(reload)
-		reload._reload = { [weak collectionView] animatingDifferences, completion in
-			var _completion: (() -> Void)? = {
-				completion.call()
-				collectionView?.reloadHandlers.removeAll {
-					ObjectIdentifier($0) == ObjectIdentifier(reload)
-				}
-			}
+		return reloadHandler.commit(temporaryReload: { animatingDifferences, completion in
+			var _completion = Optional(completion.call)
 			for section in self.sections {
 				var snapshot = diff.snapshot(for: section.section())
 				snapshot.expand(parents)
@@ -358,79 +354,106 @@ extension CollectionView.DataManager {
 				diff.apply(snapshot, to: section.section(), animatingDifferences: animatingDifferences, completion: _completion)
 				_completion = nil
 			}
-		}
-		return reload.commit()
+		})
 	}
 	
 	@available(iOS 14.0, tvOS 14.0, *)
 	@inlinable
 	@inline(__always)
 	func _collapse(parents: [ItemIdentifier]) -> ReloadHandler {
-		
 		guard let diff = diffDataSource else { return reloadHandler }
-		collectionView?.reloadImmediately()
-		let reload = ReloadHandler()
-		collectionView?.reloadHandlers.append(reload)
-		reload._reload = { [weak collectionView] animatingDifferences, completion in
-			var _completion: (() -> Void)? = {
-				completion.call()
-				collectionView?.reloadHandlers.removeAll {
-					ObjectIdentifier($0) == ObjectIdentifier(reload)
-				}
-			}
+		return reloadHandler.commit(temporaryReload: { animatingDifferences, completion in
+			var _completion = Optional(completion.call)
 			for section in self.sections {
 				var snapshot = diff.snapshot(for: section.section())
-				snapshot.expand(parents)
+				snapshot.collapse(parents)
 				
 				diff.apply(snapshot, to: section.section(), animatingDifferences: animatingDifferences, completion: _completion)
 				_completion = nil
 			}
-		}
-		return reload.commit()
+		})
 	}
 	
+	// item 要是不存在会 crash
+	// Invalid parameter not satisfying: index != NSNotFound
 	@available(iOS 14.0, tvOS 14.0, *)
 	@inlinable
 	@inline(__always)
 	func _isExpanded(_ item: ItemIdentifier) -> Bool {
 		guard let diff = diffDataSource else { return false }
-		collectionView?.reloadImmediately()
-		return sections.contains {
-			diff.snapshot(for: $0.section()).isExpanded(item)
+		guard let section = sections.first(where: {
+			$0.items.contains(where: {
+				$0.contains(item)
+			})
+		}) else {
+			assertionFailure("Invalid parameter not satisfying: childIndex != NSNotFound")
+			return false
 		}
+		collectionView?.reloadImmediately()
+		return diff.snapshot(for: section.section()).isExpanded(item)
 	}
 	
 	// level 是从0开始
+	// 展开与否没有影响
+	// item 找不到会crash
+	// Invalid parameter not satisfying: index != NSNotFound
 	@available(iOS 14.0, tvOS 14.0, *)
 	@inlinable
 	@inline(__always)
 	func _level(of item: ItemIdentifier) -> Int {
-		guard let diff = diffDataSource else { return 0 }
-		collectionView?.reloadImmediately()
-		return sections.map {
-			diff.snapshot(for: $0.section()).level(of: item)
-		}.max() ?? 0
+		typealias _Item = CollectionView.ItemData<ItemIdentifier>
+		func find(item _item: _Item, level: Int) -> Int? {
+			if _item.base == item {
+				return level
+			} else {
+				for child in _item.subItems {
+					if let result = find(item: child, level: level+1) {
+						return result
+					}
+				}
+				return nil
+			}
+		}
+		for section in sections {
+			for item in section.items {
+				if let result = find(item: item, level: 0) {
+					return result
+				}
+			}
+		}
+		assertionFailure("Invalid parameter not satisfying: index != NSNotFound")
+		return NSNotFound
 	}
 	
+	// 虽然 NSDiffableDataSourceSectionSnapshot.parent(of:) 返回的是 Optional, 但是它的 Optional 代表的是 rootItem 没有 parent, 而不是“找不到”, 找不到会crash
+	// Invalid parameter not satisfying: childIndex != NSNotFound
 	@available(iOS 14.0, tvOS 14.0, *)
 	@inlinable
 	@inline(__always)
 	func _parent<Parent>(of child: ItemIdentifier) -> Parent? where Parent: Hashable {
-		guard let diff = diffDataSource else { return nil }
-		collectionView?.reloadImmediately()
-		for section in sections {
-			guard
-				let parent = diff.snapshot(for: section.section()).parent(of: child)
-			else {
-				continue
-			}
-			
-			if let parent = parent as? CollectionView.AnyHashable {
-				return parent.base as? Parent
+		typealias _Item = CollectionView.ItemData<ItemIdentifier>
+		func find(item: _Item, parent: _Item?) -> (Bool, _Item?) {
+			if item.base == child {
+				return (true, parent)
 			} else {
-				return parent as? Parent
+				for child in item.subItems {
+					let result = find(item: child, parent: item)
+					if result.0 {
+						return result
+					}
+				}
+				return (false, nil)
 			}
 		}
+		for section in sections {
+			for item in section.items {
+				let result = find(item: item, parent: nil)
+				if result.0 {
+					return result.1?.tryBase()
+				}
+			}
+		}
+		assertionFailure("Invalid parameter not satisfying: childIndex != NSNotFound")
 		return nil
 	}
 	
@@ -441,13 +464,9 @@ extension CollectionView.DataManager {
 	@inline(__always)
 	func _isVisible(_ item: ItemIdentifier) -> Bool {
 		guard let diff = diffDataSource else {
-			return sections.contains {
-				$0.items.contains {
-					$0.base == item
-				}
-			}
+			return false
 		}
-		guard sections.contains(where:{
+		guard let section = sections.first(where:{
 			$0.items.contains {
 				$0.contains(item)
 			}
@@ -456,21 +475,16 @@ extension CollectionView.DataManager {
 			return false
 		}
 		collectionView?.reloadImmediately()
-		return sections.contains {
-			diff.snapshot(for: $0.section()).isVisible(item)
-		}
+		return diff.snapshot(for: section.section()).isVisible(item)
 	}
 	// MARK: - visibleItems
+	// visibleItems是展开的item合集
 	@available(iOS 14.0, tvOS 14.0, *)
 	@inlinable
 	@inline(__always)
 	func _visibleItems<Section, Item>(inSection identifier: Section, compactMap: ((ItemIdentifier) -> Item?)?) -> [Item]? where Item: Hashable, Section : Hashable {
 		guard let diff = diffDataSource else {
-			return sections.first {
-				$0.anySection == identifier
-			}?.items.compactMap {
-				$0.tryBase()
-			}
+			return nil
 		}
 		collectionView?.reloadImmediately()
 		return sections.first {
@@ -489,11 +503,7 @@ extension CollectionView.DataManager {
 	@inline(__always)
 	func _visibleItems<Item>(compactMap: ((ItemIdentifier) -> Item?)?) -> [Item] where Item: Hashable {
 		guard let diff = diffDataSource else {
-			return sections.flatMap {
-				$0.items.compactMap({
-					$0.tryBase()
-				})
-			}
+			return []
 		}
 		collectionView?.reloadImmediately()
 		func flatMap(items: [ItemIdentifier]) -> [Item] {
@@ -510,14 +520,13 @@ extension CollectionView.DataManager {
 	@available(iOS 14.0, tvOS 14.0, *)
 	@inlinable
 	@inline(__always)
-	func _visibleItems<Item>(atSection index: Int, compactMap: ((ItemIdentifier) -> Item?)?) -> [Item]? where Item: Hashable {
-		guard index < sections.count else {
+	func _visibleItems<Item>(atSectionIndex index: Int, compactMap: ((ItemIdentifier) -> Item?)?) -> [Item]? where Item: Hashable {
+		guard
+			index >= 0,
+			index < sections.count,
+			let diff = diffDataSource
+		else {
 			return nil
-		}
-		guard let diff = diffDataSource else {
-			return sections[index].items.compactMap {
-				$0.tryBase()
-			}
 		}
 		collectionView?.reloadImmediately()
 		let items = diff.snapshot(for: sections[index].section()).visibleItems
@@ -550,7 +559,7 @@ extension CollectionView.DataManager {
 	@inlinable
 	@inline(__always)
 	func _rootItems<Item>(atSectionIndex index: Int) -> [Item]? where Item: Hashable {
-		guard index < sections.count else {
+		guard index >= 0, index < sections.count else {
 			return nil
 		}
 		return sections[index].items.compactMap {
@@ -652,13 +661,15 @@ extension CollectionView.DataManager {
 			assertionFailure("Invalid parameter not satisfying: fromSection != NSNotFound")
 			return reloadHandler
 		}
-		guard let index = sections.firstIndex(where: {
+		guard var index = sections.firstIndex(where: {
 			$0.anySection == toSection
 		}) else {
 			assertionFailure("Invalid parameter not satisfying: toSection != NSNotFound")
 			return reloadHandler
 		}
-		
+		if movedIndex < index {
+			index -= 1
+		}
 		sections.insert(sections.remove(at: movedIndex), at: index+indexOffset)
 		return reloadHandler.commit()
 	}
@@ -671,58 +682,39 @@ extension CollectionView.DataManager {
 	@inlinable
 	@inline(__always)
 	func _reloadSections<Section>(_ identifiers: [Section]) -> ReloadHandler where Section: Hashable {
-		func _filter() -> (indexs: [Int], ids: [SectionIdentifier]) {
+		func filter() -> (indexs: [Int], ids: [SectionIdentifier]) {
 			
-			var identifiersSet = Set(identifiers.map({
+			let identifiersSet = Set(identifiers.map({
 				CollectionView.AnyHashable.package($0)
 			}))
 			
 			var indexs = [Int]()
 			var ids = [SectionIdentifier]()
 			for (section, element) in sections.enumerated() {
-				if identifiersSet.insert(element.section()).inserted {
+				if identifiersSet.contains(element.section()) {
 					indexs.append(section)
 					ids.append(element.section())
 				}
 			}
 			return (indexs, ids)
 		}
-		if #available(iOS 13.0, *) {
-			guard let diff = diffDataSource else {
-				return reloadHandler
-			}
-			let result = _filter()
-			let reload = ReloadHandler()
-			collectionView?.reloadHandlers.append(reload)
-			reload._reload = { [weak collectionView] animatingDifferences, completion in
+		let result = filter()
+		if #available(iOS 13.0, *), let diff = diffDataSource {
+			return reloadHandler.commit(temporaryReload: { animatingDifferences, completion in
 				var snap = diff.snapshot()
 				snap.reloadSections(result.ids)
 				diff.apply(snap, animatingDifferences: animatingDifferences, completion: completion.call)
-				collectionView?.reloadHandlers.removeAll {
-					ObjectIdentifier($0) == ObjectIdentifier(reload)
-				}
-			}
-			return reload
-		} else {
-			guard collectionView?.dataSource != nil else {
-				return reloadHandler
-			}
-			
-			let result = _filter()
-			let reload = ReloadHandler()
-			collectionView?.reloadHandlers.append(reload)
-			reload._reload = { [weak collectionView] animatingDifferences, completion in
+			})
+		} else if collectionView?.dataSource != nil {
+			return reloadHandler.commit(temporaryReload: { [weak collectionView] animatingDifferences, completion in
 				UIView.animate(withDuration: 0, animations: {
 					collectionView?.reloadSections(IndexSet(result.indexs))
 				}, completion: { _ in
 					completion.call()
-					collectionView?.reloadHandlers.removeAll {
-						ObjectIdentifier($0) == ObjectIdentifier(reload)
-					}
 				})
-			}
-			return reload
+			})
 		}
+		return reloadHandler
 	}
 	
 	@inlinable
@@ -745,6 +737,7 @@ extension CollectionView.DataManager {
 	@inline(__always)
 	func _applyItems<Item>(_ items: [Item], map: (Item) -> CollectionView.ItemData<ItemIdentifier>) -> ReloadHandler where Item: Hashable {
 		sections = [.init(sectionIdentifier: UUID(), items: items.map(map))]
+		useDiffDataSource = false
 		return reloadHandler.commit()
 	}
 	
@@ -762,8 +755,8 @@ extension CollectionView.DataManager {
 	}
 	@inlinable
 	@inline(__always)
-	func _applyItems<Item>(_ items: [Item], atSection index: Int, map: (Item) -> CollectionView.ItemData<ItemIdentifier>) -> ReloadHandler where Item: Hashable {
-		guard index < sections.count else {
+	func _applyItems<Item>(_ items: [Item], atSectionIndex index: Int, map: (Item) -> CollectionView.ItemData<ItemIdentifier>) -> ReloadHandler where Item: Hashable {
+		guard index >= 0, index < sections.count else {
 			return reloadHandler
 		}
 		sections[index].items = items.map(map)
@@ -777,6 +770,7 @@ extension CollectionView.DataManager {
 		self.sections = sections.map {
 			.init(sectionIdentifier: UUID(), items: $0.map(map))
 		}
+		useDiffDataSource = false
 		
 		return reloadHandler.commit()
 	}
@@ -786,6 +780,7 @@ extension CollectionView.DataManager {
 		self.sections = sections.map { (section, items) in
 			.init(sectionIdentifier: section, items: items.map(map))
 		}
+		useDiffDataSource = false
 		
 		return reloadHandler.commit()
 	}

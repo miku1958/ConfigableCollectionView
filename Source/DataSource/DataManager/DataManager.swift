@@ -24,7 +24,7 @@ import UIKit
 // append是添加, 所以需要sectionIdentifier
 protocol CollectionViewDataManager {
 	var lastIndexPath: IndexPath? { get }
-	func element(for indexPath: IndexPath) -> Any
+	func element(for indexPath: IndexPath) -> Any?
 }
 
 extension CollectionView {
@@ -36,6 +36,7 @@ extension CollectionView {
 		@usableFromInline
 		var useDiffDataSource = false
 		var _diffDataSource: Any?
+		var _baseDataSource: UICollectionViewDataSource?
 		
 		@available(iOS 13.0, *)
 		public typealias DiffDataSource = UICollectionViewDiffableDataSource<SectionIdentifier, ItemIdentifier>
@@ -59,7 +60,7 @@ extension CollectionView {
 extension CollectionView.DataManager {
 	@inline(__always)
 	func registerReloadHandler() {
-		collectionView?.reloadHandlers.first?._reload = { [weak collectionView] animatingDifferences, completion in
+		collectionView?.reloadHandler._baseReload = { [weak collectionView] animatingDifferences, completion in
 			guard let collectionView = collectionView else {
 				return
 			}
@@ -112,65 +113,94 @@ extension CollectionView.DataManager {
 extension CollectionView.DataManager {
 	@inlinable
 	public var lastIndexPath: IndexPath? {
-		let sectionIndex = numberOfSections-1
-		guard sectionIndex >= 0 else {
-			return nil
+		var itemCount = 0
+		var section = numberOfSections
+		if #available(iOS 14.0, *), useDiffDataSource {
+			reloadHandler.reloadImmediately()
 		}
-		let itemCount = numberOfItems(atSectionIndex: sectionIndex)
+		while itemCount == 0 {
+			section -= 1
+			guard section >= 0 else {
+				return nil
+			}
+			if #available(iOS 14.0, *), useDiffDataSource, let diffDataSource = diffDataSource {
+				itemCount = diffDataSource.snapshot(for: sections[section].section()).visibleItems.count
+			} else {
+				itemCount = numberOfRootItems(atSectionIndex: section)
+			}
+		}
 		guard itemCount > 0 else {
 			return nil
 		}
-		return IndexPath(item: itemCount-1, section: sectionIndex)
+		return IndexPath(item: itemCount-1, section: section)
 	}
 	@inlinable
 	@inline(__always)
-	func element(for indexPath: IndexPath) -> Any {
+	func element(for indexPath: IndexPath) -> Any? {
+		guard indexPath.item >= 0, indexPath.section >= 0, indexPath.section < sections.count else {
+			return nil
+		}
 		var item: Any?
 		if #available(iOS 13.0, *), let diffDataSource = diffDataSource {
 			item = diffDataSource.itemIdentifier(for: indexPath)
 		}
-		if item == nil {
+		if item == nil, indexPath.item < sections[indexPath.section].items.count {
 			item = sections[indexPath.section].items[indexPath.item].base
 		}
 		if let item = item as? CollectionView.AnyHashable {
 			return item.base
 		} else {
-			return item!
+			return item
 		}
 	}
-	@usableFromInline
+	
+	
 	@inline(__always)
-	func prepareDatasource() -> UICollectionViewDataSource? {
+	func prepareBaseDataSource() -> UICollectionViewDataSource? {
 		guard let collectionView = collectionView else {
 			return nil
 		}
+		_baseDataSource = CollectionView.BaseDataSource<SectionIdentifier, ItemIdentifier>(collectionView: collectionView)
+		return _baseDataSource
+	}
+	@available(iOS 13.0, *)
+	@inline(__always)
+	func prepareDiffDataSource() {
+		guard let collectionView = collectionView else {
+			return
+		}
+		let cellProvider: (UICollectionView, IndexPath, ItemIdentifier) -> UICollectionViewCell?
+		if ItemIdentifier.self == CollectionView.AnyHashable.self {
+			cellProvider = { [weak collectionView] (_, indexPath, data) in
+				collectionView?.cell(at: indexPath, item: (data as! CollectionView.AnyHashable).base)
+			}
+		} else {
+			cellProvider = { [weak collectionView] (_, indexPath, data) in
+				collectionView?.cell(at: indexPath, item: data)
+			}
+		}
+		diffDataSource = .init(collectionView: collectionView, cellProvider: cellProvider)
+	}
+	
+	@usableFromInline
+	@inline(__always)
+	func prepareDatasource() -> UICollectionViewDataSource? {
 		if #available(iOS 13.0, *) {
 			if _diffDataSource == nil {
-				let cellProvider: (UICollectionView, IndexPath, ItemIdentifier) -> UICollectionViewCell?
-				if ItemIdentifier.self == CollectionView.AnyHashable.self {
-					cellProvider = { [weak collectionView] (_, indexPath, data) in
-						collectionView?.cell(at: indexPath, item: (data as! CollectionView.AnyHashable).base)
-					}
-				} else {
-					cellProvider = { [weak collectionView] (_, indexPath, data) in
-						collectionView?.cell(at: indexPath, item: data)
-					}
-				}
-				diffDataSource = .init(collectionView: collectionView, cellProvider: cellProvider)
+				prepareDiffDataSource()
 			}
 			return diffDataSource
 		} else {
-			let dataSource = CollectionView.DataSourceBase<SectionIdentifier, ItemIdentifier>(collectionView: collectionView)
-			return dataSource
+			return prepareBaseDataSource()
 		}
 	}
 }
-// visibleItems是展开的item合集
+
 extension CollectionView.DataManager: CollectionViewDataManager {
 	@usableFromInline
 	@inline(__always)
 	var reloadHandler: ReloadHandler {
-		collectionView?.reloadHandlers.first ?? .init()
+		collectionView?.reloadHandler ?? .init()
 	}
 	
 	@inlinable
@@ -185,15 +215,15 @@ extension CollectionView.DataManager: CollectionViewDataManager {
 	}
 	
 	@inlinable
-	public var numberOfItems: Int {
+	public var numberOfRootItems: Int {
 		sections.reduce(0) {
 			$0 + $1.items.count
 		}
 	}
 	
 	@inlinable
-	public func numberOfItems(atSectionIndex index: Int) -> Int {
-		if index < sections.count {
+	public func numberOfRootItems(atSectionIndex index: Int) -> Int {
+		if index >= 0, index < sections.count {
 			return sections[index].items.count
 		} else {
 			return 0
@@ -204,6 +234,12 @@ extension CollectionView.DataManager: CollectionViewDataManager {
 	@discardableResult
 	public func deleteAllItems() -> ReloadHandler {
 		sections.removeAll()
+		useDiffDataSource = false
+		if #available(iOS 13.0, *), let diffDataSource = diffDataSource {
+			return reloadHandler.commit(temporaryReload: { animatingDifferences, completion in
+				diffDataSource.apply(.init(), animatingDifferences: animatingDifferences, completion: completion.call)
+			})
+		}
 		return reloadHandler.commit()
 	}
 	
@@ -217,11 +253,11 @@ extension CollectionView.DataManager: CollectionViewDataManager {
 	@inlinable
 	@discardableResult
 	public func reverseRootItems(atSectionIndex index: Int) -> ReloadHandler {
-		if index < sections.count {
-			sections[index].items.reverse()
-			return reloadHandler.commit()
+		guard index >= 0, index < sections.count else {
+			return reloadHandler
 		}
-		return reloadHandler
+		sections[index].items.reverse()
+		return reloadHandler.commit()
 	}
 }
 
