@@ -3,9 +3,15 @@ Create CollectionView in a similar way to iOS 13
 
 The demo used to compare Apple's ImplementingModernCollectionViews is still in production.
 
-## Advantages compared to UICollectionViewDiffableDataSource and UICollectionView.CellRegistration
+## Advantages
 
 ### 90% of test coverage
+
+### More iOS version support
+
+UICollectionViewDiffableDataSource: iOS 13 required
+
+ConfigableCollectionView: iOS 9 required, but technically supporting all iOS versions since iOS 6
 
 ### Safer
 
@@ -21,7 +27,7 @@ No distinction between NSDiffableDataSourceSectionSnapshot and NSDiffableDataSou
 
 UICollectionViewDiffableDataSource : only supports one Section type and one Item type
 
-ConfigableCollectionView: multiple items and sections supported! 
+ConfigableCollectionView: multiple items and sections supported!
 
 ## Usage
 
@@ -32,16 +38,14 @@ ConfigableCollectionView: multiple items and sections supported!
 #### Use for specific model types
 
 ```swift
-let collectionView = CollectionView<Section, Item>(layout: generateLayout()) // CollectionView<Section, Item>
+let collectionView = CollectionView<Section, Item>(layout: generateLayout())
 ```
 
 #### Support multiple model types with multiple section types
 
 ```swift
-let collectionView = CollectionView<Section, Any>(layout: generateLayout()) // CollectionView<Section, Any>
+let collectionView = CollectionView<Any, Any>(layout: generateLayout())
 ```
-
-
 
 ## register
 
@@ -177,4 +181,35 @@ collectionView.register(
 )
 ```
 
+Animating & update completion callback, using .on(animatingDifferences: completion) after all data handling functions, like:
+
+```
+collectionView.dataManager.appendItems(stings)
+.on(animatingDifferences: false, completion: { print("appended") })
+```
+
 For more on usage, check out the difference in ImplementingModernCollectionViews.
+
+## Attention 
+
+To support the old iOS version, it is using NSDiffableDataSourceSnapshot above iOS 13, and using the data directly into a CustomUICollectionViewDataSource below iOS 13, to reduce the count of recreated NSDiffableDataSourceSnapshot instances, so the reload cells of CollectionView are async. To avoid that you can call the DataManager.reloadImmediately()
+
+You can use your own UICollectionViewDelegate(some delegate functions won't call), but you can't reset the UICollectionViewDataSource.
+
+Known Issues:
+
+The filter on appending children is not achieved due to performance issues, so it still adds to NSDiffableDataSourceSectionSnapshot directly, and crashes if you add a repetitive object in the release.
+
+Because it will recreate NSDiffableDataSourceSnapshot instances, and if you use the data handling function above in iOS 14 based on NSDiffableDataSourceSnapshot, it won't save the expanded state, and if you change the data, it will collapse all items.
+
+## Installation
+
+
+
+## TODO List
+
+- [ ] High performance filter for appending children.
+- [ ] Distinguish the achievements of data handling functions above iOS 13 to solve the problem of recreating NSDiffableDataSourceSnapshot instances.
+- [ ] Remove Proxy.m to support Swift package manager or wait for it support .m files.
+- [ ] tvOS support.
+
