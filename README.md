@@ -204,7 +204,7 @@ Because it will recreate NSDiffableDataSourceSnapshot instances, and if you use 
 
 ## Installation
 
-
+pod 'ConfigableCollectionView'
 
 ## TODO List
 
