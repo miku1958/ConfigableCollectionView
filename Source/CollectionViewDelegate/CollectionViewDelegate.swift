@@ -29,7 +29,11 @@ extension CollectionView {
 				if layout.estimatedItemSize != .zero {
 					return layout.estimatedItemSize
 				}
-				if layout.itemSize != UICollectionViewFlowLayout.automaticSize {
+				if #available(iOS 10.0, *) {
+					if layout.itemSize != UICollectionViewFlowLayout.automaticSize {
+						return layout.itemSize
+					}
+				} else {
 					return layout.itemSize
 				}
 			}
