@@ -71,12 +71,11 @@ static NSArray<NSSEL *> *allDataSourceMethod;
 	return self;
 }
 - (instancetype)initWithProxy:(CollectionViewDelegateProxy *)proxy {
+	_allMethods = proxy.allMethods;
+	_collection = proxy.collection;
 	_customDelegates = proxy.customDelegates;
 	_methodsMap = proxy.methodsMap;
 	_mainDelegate = proxy.mainDelegate;
-	_collection = proxy.collection;
-	[self initChecker];
-	[self initMethods];
 	return self;
 }
 - (void)initChecker {
@@ -160,7 +159,7 @@ static NSArray<NSSEL *> *allDataSourceMethod;
 @implementation CollectionViewDelegateProxy(proxy)
 - (void)findResponderForSEL:(NSSEL *)sel {
 	[self setObj: _mainDelegate forSEL: sel filterMainDelegate: false];
-	for (id obj in _allMethods) {
+	for (id obj in _customDelegates) {
 		[self setObj: obj forSEL: sel filterMainDelegate: false];
 	}
 }

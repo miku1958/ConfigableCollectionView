@@ -36,18 +36,23 @@ public class CollectionView<SectionType, ItemType>: UICollectionView {
 		didSet {
 			// 防止有些第三方(比如 RxCocoa) 内部在设置完 delegate 后会进行 assert 判断有没有被修改, 所以这里先把原来的异步修改回自定义的 delegate, 并且把原来的 collectionDelegate 释放, 不然会死循环
 			guard let delegate = delegate else { return }
-			if delegate.isEqual(collectionDelegate) {
-				return
-			}
+			guard
+				!delegate.isEqual(collectionDelegate),
+				!delegate.isEqual(oldValue)
+			else { return }
 			DispatchQueue.main.async {
-				self.resetANewDelegateProxy()
-				self.collectionDelegate.addDelegates(delegate)
+				self.resetANewDelegateProxy(addingDelegate: delegate)
 			}
 		}
 	}
 	@inline(__always)
-	func resetANewDelegateProxy() {
+	func resetANewDelegateProxy(addingDelegate: UICollectionViewDelegate?) {
 		let newDelegate = CollectionViewDelegateProxy(proxy: collectionDelegate)
+		// 先释放旧的是为了防止像 RxSwift 这类会内部又持有原本 delegate 的导致死循环
+		collectionDelegate = nil
+		super.delegate = nil
+		// 因为设置 super.delegate 的时候就会检查 delegate 的方法实现, 所以这里改成先添加再设置
+		newDelegate.addDelegates(addingDelegate)
 		self.collectionDelegate = newDelegate
 		super.delegate = newDelegate
 	}
@@ -124,7 +129,7 @@ extension CollectionView {
 					assertionFailure("Invalid parameter not satisfying: view register != nil")
 				}
 			}
-
+			
 			return dequeueReusableCell(withReuseIdentifier: emptyCellIdentifier, for: indexPath)
 		}
 		let cell = dequeueReusableCell(withReuseIdentifier: registerd.reuseIdentifier, for: indexPath)
