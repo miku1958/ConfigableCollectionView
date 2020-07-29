@@ -34,6 +34,10 @@ UICollectionViewDiffableDataSource : only supports one Section type and one Item
 
 ConfigableCollectionView: multiple items and sections supported!
 
+### Truly base on Hashable
+
+UICollectionViewDiffableDataSource has a bug( or is it a feature? ), and when you are using a class as ItemType, it won't hash the item with hashValue rather it's address.
+
 ## Usage
 
 ### initialization

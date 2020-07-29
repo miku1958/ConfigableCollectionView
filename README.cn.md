@@ -31,6 +31,10 @@ UICollectionViewDiffableDataSource : 只支持一种 Section 和一种 Item 类�
 
 ConfigableCollectionView: 支持不同类型的 Item 和 Sections 混合使用! 
 
+### 真正的使用Hashable
+
+UICollectionViewDiffableDataSource 存在一个 bug (还是说这其实是个特性?), 当你使用类作为 ItemType 的时候, 它会使用 item 的地址进行 hash 而不是 hashValue, 神奇的是, 官方 DEMO 里也用了类作为ItemType, 实现了 Hashable 却用不上
+
 ## 用法
 
 ### 初始化
