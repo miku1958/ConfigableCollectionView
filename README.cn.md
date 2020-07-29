@@ -53,10 +53,10 @@ let collectionView = CollectionView<Any, Any>(layout: generateLayout())
 
 ```swift
 collectionView.register(
-  view: { // create view for reuse
+  view: { // 创建用于复用的 UICollectionViewListCell
     UICollectionViewListCell()
   },
-  .config { // config the UICollectionViewListCell with Item
+  .config { // 用 Item 配置 UICollectionViewListCell
     let cell = $0.view
     let item = $0.data
     var contentConfiguration = cell.defaultContentConfiguration()
@@ -68,26 +68,26 @@ collectionView.register(
     cell.accessories = [.outlineDisclosure(options:disclosureOptions)]
     cell.backgroundConfiguration = UIBackgroundConfiguration.clear()
   },
-  .when { // Optional, deciding when to use this type of view if need
+  .when { // 非必要, 过滤什么时候使用这个类型的 View
     !$0.data.subitems.isEmpty
   }
 )
 
 collectionView.register(
-  view { // create normal view for reuse
+  view { // 创建用于复用的 ContentView
     ContentView()
   },
-  .config(map: \.title) { // config the ContentView with Item.title, configurationState: UICellConfigurationState(introduced in iOS 14) 
+  .config(map: \.title) { // 用 Item.title 配置 ContentView, configurationState 是 iOS 14 新增的 UICellConfigurationState
     $0.view.data = $0.data
     if $0.configurationState.isHighlighted {
     	$0.view.backgroundColor = .red
     }
     ...
   },
-  .flowLayoutSize { _ in // Optional, deciding the size in flow layout
+  .flowLayoutSize { _ in // 非必要, 设置 ContentView 的尺寸, 仅当使用UICollectionViewFlowLayout时有用
     CGSize(width: 100, height: 100)
   },
-  .tap { _ in  // Optional, deciding what to do after tap the view
+  .tap { _ in  // 非必要, ContentView 的点击事件
     Router.push( ... )
   }
 )
