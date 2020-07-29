@@ -1,11 +1,14 @@
 # ConfigableCollectionView
-Create CollectionView in a similar way to iOS 13
 
-The demo used to compare Apple's ImplementingModernCollectionViews is still in production.
+## [中文文档](https://github.com/miku1958/ConfigableCollectionView/blob/master/README.cn.md)
+
+Create CollectionView in a similar way to new DataSource introdeced in iOS 13
+
+The demo is based on Apple's ImplementingModernCollectionViews.
 
 ## Advantages
 
-### 90% of test coverage
+### Over 90% of test coverage
 
 ### More iOS version support
 
@@ -23,6 +26,8 @@ ConfigableCollectionView : only assert during debugging when you append a repeti
 
 No distinction between NSDiffableDataSourceSectionSnapshot and NSDiffableDataSourceSnapshot
 
+The touch to cell is based on hittest rather than cell.bounds(this is how UICollectionView work), so you can override the view’s hittest you use to make sure your tap action works properly.
+
 ### Multiple Item types and Sections supported! 
 
 UICollectionViewDiffableDataSource : only supports one Section type and one Item type
@@ -31,17 +36,15 @@ ConfigableCollectionView: multiple items and sections supported!
 
 ## Usage
 
-### Attention! After I finish the comparison and release the demo, the grammar may becomes more straightforward.
-
 ### initialization
 
-#### Use for specific model types
+#### Use for specific Item type
 
 ```swift
 let collectionView = CollectionView<Section, Item>(layout: generateLayout())
 ```
 
-#### Support multiple model types with multiple section types
+#### Support multiple Item types with multiple Section types
 
 ```swift
 let collectionView = CollectionView<Any, Any>(layout: generateLayout())
@@ -49,7 +52,7 @@ let collectionView = CollectionView<Any, Any>(layout: generateLayout())
 
 ## register
 
-#### Use for specific model types
+#### Use for specific Item type
 
 ```swift
 collectionView.register(
@@ -94,7 +97,7 @@ collectionView.register(
 ...
 ```
 
-#### Use multiple model types
+#### Use multiple Item types
 
 ```swift
 collectionView.register(
@@ -117,7 +120,7 @@ collectionView.register(
 )
 ```
 
-The view closure is a ViewBuilder that supports weak reference of object w hen config view once the view is created, like
+#### The view closure is a ViewBuilder that supports weak reference of object w hen config view once the view is created, like
 
 ```swift
 collectionView.register(
@@ -137,7 +140,7 @@ Attention: if using subClass of UICollectionViewCell, it won't use the view clos
 
 
 
-### set up data, very similar to the UICollectionViewDiffableDataSource
+### Set up data, very similar to the UICollectionViewDiffableDataSource
 
 like:
 
@@ -154,13 +157,21 @@ support recursivePath in appendChildItems
 
 ```swift
 collectionView.dataManager.appendChildItems(menuItems, to: nil, recursivePath: \.subitems)
+is equal to:
+func addItems(_ menuItems: [OutlineItem], to parent: OutlineItem?) {
+    collectionView.dataManager.appendChildItems(menuItems, to: parent)
+    for menuItem in menuItems where !menuItem.subitems.isEmpty {
+        addItems(menuItem.subitems, to: menuItem)
+    }
+}
+addItems(menuItems, to: nil)
 ```
 
 or: 
 
-multi type of Item and Section support
+use multi type of Item in the same section
 
-```
+```swift
 let numbers: [Int]
 let stings: [String]
 
@@ -183,7 +194,7 @@ collectionView.register(
 
 Animating & update completion callback, using .on(animatingDifferences: completion) after all data handling functions, like:
 
-```
+```swift
 collectionView.dataManager.appendItems(stings)
 .on(animatingDifferences: false, completion: { print("appended") })
 ```
@@ -192,7 +203,7 @@ For more on usage, check out the difference in ImplementingModernCollectionViews
 
 ## Attention 
 
-To support the old iOS version, it is using NSDiffableDataSourceSnapshot above iOS 13, and using the data directly into a CustomUICollectionViewDataSource below iOS 13, to reduce the count of recreated NSDiffableDataSourceSnapshot instances, so the reload cells of CollectionView are async. To avoid that you can call the DataManager.reloadImmediately()
+To support the old iOS version, it is using NSDiffableDataSourceSnapshot above iOS 13, and using the data directly into a CustomUICollectionViewDataSource below iOS 13, to reduce the count of recreated NSDiffableDataSourceSnapshot instances, so the reload cells of CollectionView are async. To avoid that you can call the reloadImmediately()
 
 You can use your own UICollectionViewDelegate(some delegate functions won't call), but you can't reset the UICollectionViewDataSource.
 
