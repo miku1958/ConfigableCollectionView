@@ -223,4 +223,5 @@ pod 'ConfigableCollectionView'
 - [ ] Distinguish the achievements of data handling functions above iOS 13 to solve the problem of recreating NSDiffableDataSourceSnapshot instances.
 - [ ] Remove Proxy.m to support Swift package manager or wait for it support .m files.
 - [ ] tvOS support.
+- [ ] Document supplement.
 
