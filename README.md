@@ -80,7 +80,7 @@ collectionView.register(
   view { // create normal view for reuse
     ContentView()
   },
-  .config(map: \.title) { // config the ContentView with Item.title, configurationState: UICellConfigurationState(introduced in iOS 14) 
+  .config(map: \.title) { // config the ContentView with Item.title, configurationState: UICellConfigurationState(introduced in iOS 14, no useful when you using UICollectionViewCell as View) 
     $0.view.data = $0.data
     if $0.configurationState.isHighlighted {
     	$0.view.backgroundColor = .red
