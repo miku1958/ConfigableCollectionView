@@ -77,7 +77,7 @@ collectionView.register(
   view { // 创建用于复用的 ContentView
     ContentView()
   },
-  .config(map: \.title) { // 用 Item.title 配置 ContentView, configurationState 是 iOS 14 新增的 UICellConfigurationState
+  .config(map: \.title) { // 用 Item.title 配置 ContentView, configurationState 是 iOS 14 新增的 UICellConfigurationState, 如果你使用UICollectionViewCell作为View则是没有用的
     $0.view.data = $0.data
     if $0.configurationState.isHighlighted {
     	$0.view.backgroundColor = .red
