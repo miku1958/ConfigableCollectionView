@@ -219,5 +219,5 @@ pod 'ConfigableCollectionView'
 - [ ] 实现高性能的支持 appending children 的过滤器
 - [ ] 在 iOS13上 改为直接操作 UICollectionViewDiffableDataSource 更新数据的方式而不是通过更新内部数据后重新创建 NSDiffableDataSourceSnapshot, 以解决NSDiffableDataSourceSectionSnapshot 的子项闭合丢失问题
 - [ ] 移除 Proxy.m,以支持 Swift package manager, 或者等 SPM 支持.m文件后添加 SPM 的支持
-- [ ] tvOS 的支持.
-
+- [ ] tvOS 的支持
+- [ ] 补充使用文档
