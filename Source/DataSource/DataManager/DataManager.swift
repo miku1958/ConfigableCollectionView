@@ -124,7 +124,9 @@ extension CollectionView.DataManager {
 				return nil
 			}
 			if #available(iOS 14.0, *), useDiffDataSource, let diffDataSource = diffDataSource {
+				#if swift(>=5.3)
 				itemCount = diffDataSource.snapshot(for: sections[section].section()).visibleItems.count
+				#endif
 			} else {
 				itemCount = numberOfRootItems(atSectionIndex: section)
 			}
