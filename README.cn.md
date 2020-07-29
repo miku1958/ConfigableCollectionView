@@ -9,9 +9,9 @@
 
 ### 支持更多的 iOS 版本
 
-UICollectionViewDiffableDataSource: 需求iOS13
+UICollectionViewDiffableDataSource: 要求 iOS13
 
-ConfigableCollectionView: 支持iOS 9, 虽然技术上来说支持iOS6以来的所有版本
+ConfigableCollectionView: 最低支持 iOS 9, 虽然技术上来说支持 iOS6 以来的所有版本
 
 ### 更安全
 
