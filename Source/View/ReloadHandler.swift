@@ -73,9 +73,8 @@ extension ReloadHandler {
 		reloadTemporaryImmediately()
 		reloadBaseImmediately()
 	}
-	@available(iOS 13.0, tvOS 13.0, *)
-    @discardableResult
-	public func on(animatingDifferences: Bool, completion: (() -> Void)? = nil) -> ReloadHandler {
+	@discardableResult
+	public func on(animatingDifferences: Bool = true, completion: (() -> Void)? = nil) -> ReloadHandler {
 		if _temporaryReload != nil {
 			_temporaryReload?.option.animatingDifferences = animatingDifferences
 			if let completion = completion {
@@ -87,21 +86,7 @@ extension ReloadHandler {
 				self.completions.append(completion)
 			}
 		}
-
-        return self
-	}
-	
-    @discardableResult
-	public func on(completion: (() -> Void)? = nil) -> ReloadHandler {
-		if _temporaryReload != nil {
-			if let completion = completion {
-				_temporaryReload?.option.completions.append(completion)
-			}
-		} else {
-			if let completion = completion {
-				self.completions.append(completion)
-			}
-		}
-        return self
+		
+		return self
 	}
 }
