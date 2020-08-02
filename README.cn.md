@@ -1,7 +1,7 @@
 # ConfigableCollectionView
 用和 iOS 13 新加的 DataSource 类似的方式配置 CollectionView
 
-实现 Demo 是根据 Apple's ImplementingModernCollectionViews 制作的.
+Demo 是根据 Apple's ImplementingModernCollectionViews 制作的.
 
 ## 优势
 
@@ -9,46 +9,49 @@
 
 ### 支持更多的 iOS 版本
 
-UICollectionViewDiffableDataSource: 要求 iOS13
+UICollectionViewDiffableDataSource: 要求 iOS 13
 
 ConfigableCollectionView: 最低支持 iOS 9, 虽然技术上来说支持 iOS6 以来的所有版本
 
 ### 更安全
 
-UICollectionViewDiffableDataSource: 一旦你添加一个 hash 重复的数据会抛出异常导致 crash (包括在 release 下), 而且测试下来 iOS14 和 iOS13 的 API 有些会 crash 有些不会, 很混乱
+UICollectionViewDiffableDataSource: 一旦你添加一个 hash 重复的数据会抛出异常导致 crash (包括在 release 下), 并且经过测试, iOS 14 和 iOS 13 的 API 有些会 crash 有些不会, 很混乱
 
-ConfigableCollectionView : 只会在 debug 下进行断言判断添加的是否一个 hash 重复的数据
+ConfigableCollectionView : 只会在 debug 下进行断言判断添加的是否一个重复的数据
+
+### 真正的使用 Hashable
+
+UICollectionViewDiffableDataSource 存在一个 bug (还是说这其实是个特性?), 当你使用 class 作为 ItemType 的时候, 它会使用类对象的地址作为 hash 而不是用 Hashable 的 hashValue, 神奇的是, 官方 DEMO 里也用了类作为ItemType, 实现了 Hashable 但实际并不会触发
+
 
 ### 更方便
 
-没有像 NSDiffableDataSourceSectionSnapshot 和 NSDiffableDataSourceSnapshot一样区分 API
+1. 没有像 NSDiffableDataSourceSectionSnapshot 和 NSDiffableDataSourceSnapshot 一样区分 API
 
-cell 的点击是根据 hittest 而不是根据 cell.bounds 决定的( UICollectionView 会忽略 cell.bounds 外的点击, 即使你重写 Cell 的 hittest 也没有效果), 因此你可以重写你所使用的 View 的 hittest 确保你所需要的 tap action 能正常工作
+2. cell 的点击是根据 hittest 而不是根据 cell.bounds 决定的( UICollectionView 会忽略 cell.bounds 外的点击, 即使你重写 Cell 的 hittest 也没有效果), 因此你可以重写你所使用的 View 的 hittest 确保你所需要的点击事件能正常工作
 
-### 支持不同类型的 Item 和 Sections! 
+3. 支持直接使用 UIView 而不仅限于 UICollectionView 去注册复用池, 不必再担心为了复用一个 View 需要特地创建一个 UICollectionViewCell, 或者为了给 View 套一层装饰要改动 Cell 里大量的代码了
+
+### 支持使用多种类型的 Item 和 Sections
 
 UICollectionViewDiffableDataSource : 只支持一种 Section 和一种 Item 类型
 
 ConfigableCollectionView: 支持不同类型的 Item 和 Sections 混合使用! 
-
-### 真正的使用Hashable
-
-UICollectionViewDiffableDataSource 存在一个 bug (还是说这其实是个特性?), 当你使用类作为 ItemType 的时候, 它会使用 item 的地址进行 hash 而不是 hashValue, 神奇的是, 官方 DEMO 里也用了类作为ItemType, 实现了 Hashable 却用不上
-
 ## 用法
 
 ### 初始化
+根据使用的类型是否 Any, 后续使用 API 会有所变化, 但方法名称是一样的
 
 #### 使用特定的 Section/Item 类型, 后续 API 都会绑定此类型
 
 ```swift
-let collectionView = CollectionView<Section, Item>(layout: generateLayout())
+CollectionView<Section, Item>(layout: generateLayout())
 ```
 
 #### 如果想要使用不同的 Section 或者 Item 类型, 后续 API 皆为泛型
 
 ```swift
-let collectionView = CollectionView<Any, Any>(layout: generateLayout())
+CollectionView<Any, Any>(layout: generateLayout())
 ```
 
 ## 注册
@@ -84,7 +87,7 @@ collectionView.register(
   .config(map: \.title) { // 用 Item.title 配置 ContentView, configurationState 是 iOS 14 新增的 UICellConfigurationState, 如果你使用UICollectionViewCell作为View则是没有用的
     $0.view.data = $0.data
     if $0.configurationState.isHighlighted {
-    	$0.view.backgroundColor = .red
+      $0.view.backgroundColor = .red
     }
     ...
   },
@@ -121,7 +124,7 @@ collectionView.register(
 )
 ```
 
-#### 这里的 view 闭包是一个 ViewBuilder, 用于支持在配置当 View 被创建的那一刻需要给 View 传参, 而这个时候可能需要弱引用来源对象(当然还是更建议放到 config 里配置), 比如:
+#### 这里的 view 闭包是一个 ViewBuilder, 用于支持当 View 被创建的那一刻需要给 View 传参, 而这个时候可能需要弱引用来源对象(当然还是更建议放到 config 里配置), 比如:
 
 ```swift
 collectionView.register(
@@ -137,19 +140,22 @@ collectionView.register(
 )
 ```
 
-注意, 如果使用的 View 是一个 UICollectionViewCell 的子类, 由于 UICollectionView 本身的限制需要使用 UICollectionView.dequeue 获取 Cell, 此时是不会使用 View 闭包来创建 Viiew 的
+注意, 如果使用的 View 是一个 UICollectionViewCell 的子类, 由于 UICollectionView 本身的限制需要使用 UICollectionView.dequeue 获取 Cell, 是不会使用 View 闭包来创建 Cell 的, 相当于这里的 ViewBuilder 只是用来确认类型, 没有其他作用
 
 
 
 ### 设置数据, 和 UICollectionViewDiffableDataSource 非常类似
+···
+let dataManager = collectionView.dataManager
+···
 
 比如:
 
 ```swift
-collectionView.dataManager.appendSections([Section.main])
-collectionView.dataManager.appendItems(mountains)
+dataManager.appendSections([Section.main])
+dataManager.appendItems(mountains)
 等价于
-collectionView.dataManager.applyItems(mountains, updatedSection: Section.main)
+dataManager.applyItems(mountains, updatedSection: Section.main)
 ```
 
 又比如: 
@@ -157,10 +163,10 @@ collectionView.dataManager.applyItems(mountains, updatedSection: Section.main)
 `appendChildItems` 时支持递归路径
 
 ```swift
-collectionView.dataManager.appendChildItems(menuItems, to: nil, recursivePath: \.subitems)
+dataManager.appendChildItems(menuItems, to: nil, recursivePath: \.subitems)
 等价于
 func addItems(_ menuItems: [OutlineItem], to parent: OutlineItem?) {
-    collectionView.dataManager.appendChildItems(menuItems, to: parent)
+    dataManager.appendChildItems(menuItems, to: parent)
     for menuItem in menuItems where !menuItem.subitems.isEmpty {
         addItems(menuItem.subitems, to: menuItem)
     }
@@ -176,8 +182,8 @@ addItems(menuItems, to: nil)
 let numbers: [Int]
 let stings: [String]
 
-collectionView.dataManager.appendItems(numbers)
-collectionView.dataManager.appendItems(stings)
+dataManager.appendItems(numbers)
+dataManager.appendItems(stings)
 
 collectionView.register(
   dataType: Int.self,
@@ -196,15 +202,15 @@ collectionView.register(
 动画和更新结束回调, 在调用操作数据的方法后使用 `.on(animatingDifferences: completion)` 即可:
 
 ```swift
-collectionView.dataManager.appendItems(stings)
-.on(animatingDifferences: false, completion: { print("appended") })
+dataManager.appendItems(stings)
+  .on(animatingDifferences: false, completion: { print("appended") })
 ```
 
-更多的用法可以查看对比上方的苹果官方 DEMO ImplementingModernCollectionViews
+更多的用法可以查看对比上方修改过的苹果官方 DEMO ImplementingModernCollectionViews
 
 ## 注意 
 
-为了支持低版本 iOS, ConfigableCollectionView 在iOS13 以下则是通过一个独立的 UICollectionViewDataSource 提供支持, 而 iOS13 以上会使用 NSDiffableDataSourceSnapshot, 目前为了减少每次更新都去重新创建 NSDiffableDataSourceSnapshot, 会异步去刷新数据, 等当前调用栈结束后再去创建新的 NSDiffableDataSourceSnapshot, 如果有需要可可以通过 reloadImmediately() 去避免异步刷新
+为了支持低版本 iOS, ConfigableCollectionView 在iOS 13 以下是通过一个独立的 UICollectionViewDataSource 提供支持, 而 iOS13 以上会使用 NSDiffableDataSourceSnapshot, 目前为了减少每次更新都去重新创建 NSDiffableDataSourceSnapshot, 会异步去刷新数据, 等当前调用栈结束后再去创建新的 NSDiffableDataSourceSnapshot, 如果有需要可可以通过 reloadImmediately() 去避免异步刷新
 
 你可以使用自己的 UICollectionViewDelegate (有些代理方法不会被调用), 但你不能重新设置 UICollectionViewDataSource
 
