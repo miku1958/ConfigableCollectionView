@@ -30,7 +30,7 @@ UICollectionViewDiffableDataSource 存在一个 bug (还是说这其实是个特
 
 2. cell 的点击是根据 hittest 而不是根据 cell.bounds 决定的( UICollectionView 会忽略 cell.bounds 外的点击, 即使你重写 Cell 的 hittest 也没有效果), 因此你可以重写你所使用的 View 的 hittest 确保你所需要的点击事件能正常工作
 
-3. 支持直接使用 UIView 而不仅限于 UICollectionView 去注册复用池, 不必再担心为了复用一个 View 需要特地创建一个 UICollectionViewCell, 或者为了给 View 套一层装饰要改动 Cell 里大量的代码了
+3. 支持直接使用 UIView 而不仅限于 UICollectionViewCell 去注册复用池, 不必再担心为了复用一个 View 需要特地创建一个 UICollectionViewCell, 或者为了给 View 套一层装饰要改动 Cell 里大量的代码了
 
 ### 支持使用多种类型的 Item 和 Sections
 
