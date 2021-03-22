@@ -1,7 +1,7 @@
 # ConfigableCollectionView
-用和 iOS 13 新加的 DataSource 类似的方式配置 CollectionView
+使用和 iOS 13 新加的 DataSource 类似的方式配置 CollectionView
 
-Demo 是根据 Apple's ImplementingModernCollectionViews 制作的.
+Demo 根据 Apple's ImplementingModernCollectionViews 制作的.
 
 ## 优势
 
