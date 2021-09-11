@@ -5,7 +5,7 @@
 //  Created by 庄黛淳华 on 2020/7/25.
 //
 
-import Foundation
+import UIKit
 
 extension CollectionView {
 	@usableFromInline

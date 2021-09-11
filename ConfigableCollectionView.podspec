@@ -8,7 +8,18 @@ Pod::Spec.new do |spec|
 	spec.source = { :git => "https://github.com/miku1958/ConfigableCollectionView.git", :tag => spec.version }
 
 	spec.swift_version = '5.0'
+	
+	spec.default_subspec = 'ConfigableCollectionView'
 
-	spec.ios.deployment_target = "9.0"
-	spec.source_files = "Source/**/*.*"
+	spec.subspec 'ConfigableCollectionView' do |spec|
+		spec.ios.deployment_target = "9.0"
+		spec.source_files = "Source/ConfigableCollectionView/**/*.*"
+		spec.dependency 'ConfigableCollectionView/Proxy'
+	end
+
+	spec.subspec 'Proxy' do |spec|
+		spec.ios.deployment_target = "9.0"
+		spec.source_files = "Source/Proxy/**/*.*"
+		spec.module
+	end
 end

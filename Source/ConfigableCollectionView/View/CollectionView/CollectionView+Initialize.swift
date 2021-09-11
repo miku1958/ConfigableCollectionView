@@ -5,7 +5,19 @@
 //  Created by 庄黛淳华 on 2020/7/28.
 //
 
-import Foundation
+import UIKit
+
+extension CollectionView {
+	@_disfavoredOverload
+	public convenience init(layout: UICollectionViewLayout) {
+		fatalError(#"Please use "Any" or "Type comfirms to Hashable" as the ItemType/SectionType"#)
+	}
+	@inline(__always)
+	@_disfavoredOverload
+	public var dataManager: DataManager<AnyHashable, AnyHashable> {
+		fatalError("")
+	}
+}
 
 extension CollectionView where ItemType == Any, SectionType: Hashable {
 	public convenience init(layout: UICollectionViewLayout) {

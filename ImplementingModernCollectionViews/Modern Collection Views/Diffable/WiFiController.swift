@@ -5,7 +5,7 @@ Abstract:
 Controller object which notifies our application when availalbe Wi-Fi APs are available
 */
 
-import Foundation
+import UIKit
 
 class WiFiController {
 

@@ -5,7 +5,7 @@
 //  Created by 庄黛淳华 on 2020/7/28.
 //
 
-import Foundation
+import UIKit
 
 extension CollectionView {
 	public func scrollToItem(at indexPath: IndexPath, at scrollPosition: UICollectionView.ScrollPosition, offset: CGPoint, animated: Bool) {

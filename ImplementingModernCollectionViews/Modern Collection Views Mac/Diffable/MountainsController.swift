@@ -5,7 +5,7 @@ Abstract:
 Controller object that manages our Mountain values and allows for searches
 */
 
-import Foundation
+import UIKit
 
 class MountainsController {
 

@@ -5,7 +5,7 @@ Abstract:
 Controller object that manages the videos and video collection for the sample app
 */
 
-import Foundation
+import UIKit
 
 class ConferenceVideoController {
 

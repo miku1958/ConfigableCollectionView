@@ -5,7 +5,7 @@
 //  Created by 庄黛淳华 on 2020/7/28.
 //
 
-import Foundation
+import UIKit
 
 public extension CollectionView where ItemType == Any {
 	/// 使用多个RegisteredView注册Cell

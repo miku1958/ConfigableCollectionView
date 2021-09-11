@@ -5,7 +5,7 @@
 //  Created by 庄黛淳华 on 2020/7/19.
 //
 
-import Foundation
+import UIKit
 extension CollectionView {
 	// print(Swift.AnyHashable(Int(1)) == Swift.AnyHashable(Int8(1))) // true, 所以手动写一个AnyHashable
 	public struct AnyHashable: Hashable {

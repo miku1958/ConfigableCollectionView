@@ -5,7 +5,7 @@
 //  Created by 庄黛淳华 on 2020/7/20.
 //
 
-import Foundation
+import UIKit
 
 extension Array where Element: Hashable {
 	@usableFromInline

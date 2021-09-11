@@ -1,16 +1,20 @@
 PODS:
-  - ConfigableCollectionView (1.0.0)
+  - ConfigableCollectionView (1.0.0):
+    - ConfigableCollectionView/ConfigableCollectionView (= 1.0.0)
+  - ConfigableCollectionView/ConfigableCollectionView (1.0.0):
+    - ConfigableCollectionView/Proxy
+  - ConfigableCollectionView/Proxy (1.0.0)
 
 DEPENDENCIES:
-  - ConfigableCollectionView (from `../Source`)
+  - ConfigableCollectionView (from `..`)
 
 EXTERNAL SOURCES:
   ConfigableCollectionView:
-    :path: "../Source"
+    :path: ".."
 
 SPEC CHECKSUMS:
-  ConfigableCollectionView: a5ae409fb3133ec5883f82c52ddeed9fb6ec48b6
+  ConfigableCollectionView: f4df1db2a745dd6fac091b785f9bba50eddae3b6
 
-PODFILE CHECKSUM: db17ca3754dc12b17c569ee781f5a544eb867897
+PODFILE CHECKSUM: 3bfada843c16cd4ab74d87b95cad6a66b730db54
 
-COCOAPODS: 1.9.3
+COCOAPODS: 1.10.1

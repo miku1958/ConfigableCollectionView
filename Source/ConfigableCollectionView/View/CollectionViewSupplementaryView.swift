@@ -5,7 +5,7 @@
 //  Created by 庄黛淳华 on 2020/7/24.
 //
 
-import Foundation
+import UIKit
 
 //class CollectionViewSupplementaryView: UICollectionReusableView {
 //    var subview: UIView?

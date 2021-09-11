@@ -5,7 +5,7 @@
 //  Created by 庄黛淳华 on 2020/7/12.
 //
 
-import Foundation
+import UIKit
 
 public class ReloadHandler {
 	@usableFromInline

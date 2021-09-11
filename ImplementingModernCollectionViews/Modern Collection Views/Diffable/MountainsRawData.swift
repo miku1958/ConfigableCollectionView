@@ -5,7 +5,7 @@ Abstract:
 Controller object that manages our Mountains and allows for searches
 */
 
-import Foundation
+import UIKit
 
 let mountainsRawData = """
 Mount Everest,8848

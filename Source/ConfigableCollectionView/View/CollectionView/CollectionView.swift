@@ -7,6 +7,10 @@
 //
 
 import UIKit
+#if canImport(Proxy)
+@_implementationOnly import Proxy
+#endif
+
 var isUnitTesting = false
 let emptyCellIdentifier = "_emptyCellIdentifier"
 public class CollectionView<SectionType, ItemType>: UICollectionView {
